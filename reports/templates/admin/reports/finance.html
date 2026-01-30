@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+{% block title %}گزارش مالی{% endblock %}
+{% block content %}
+<div style="direction:rtl">
+  <h1>گزارش مالی</h1>
+  {% include "admin/reports/_filter_form.html" %}
+  <div class="module">
+    <p>بازه: {{ data.start }} تا {{ data.end }}</p>
+
+    <table class="table">
+      <thead><tr><th>شاخص</th><th>مقدار</th></tr></thead>
+      <tbody>
+        <tr><td>تعداد پرداخت‌های ثبت‌نام مسابقه</td><td>{{ data.enrollment_paid_count }}</td></tr>
+        <tr><td>جمع مبالغ ثبت‌نام مسابقه</td><td>{{ data.enrollment_paid_sum }}</td></tr>
+        <tr><td>تعداد پرداخت‌های سمینار</td><td>{{ data.seminar_paid_count }}</td></tr>
+        <tr><td>جمع مبالغ سمینار</td><td>{{ data.seminar_paid_sum }}</td></tr>
+      </tbody>
+    </table>
+
+    <p style="margin-top:10px">
+      <a class="button" href="{% url 'reports:export_csv' 'finance' %}?start={{ form.start.value }}&end={{ form.end.value }}">دانلود CSV</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

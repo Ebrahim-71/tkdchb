@@ -1,0 +1,53 @@
+{% extends "admin/change_form.html" %}
+{% load admin_urls i18n %}
+
+{% block extrahead %}
+  {{ block.super }}
+  <style>
+    .tkd-approve-btn{
+      background:#dc3545;
+      color:#fff!important;
+      padding:8px 14px;
+      border-radius:6px;
+      text-decoration:none;
+      display:inline-block;
+      font-weight:700;
+      margin:10px 0;
+      border:0;
+      cursor:pointer;
+    }
+    .tkd-approve-btn:hover{
+      background:#bb2d3b;
+    }
+    .tkd-approve-wrap{
+      display:flex;
+      gap:.5rem;
+      align-items:center;
+    }
+  </style>
+{% endblock %}
+
+{# دکمه بالاى فرم #}
+{% block submit_buttons_top %}
+  {{ block.super }}
+  {% if original and original.pk %}
+    <div class="tkd-approve-wrap">
+      {# این دکمه داخل فرم اصلی ادمین است، نه فرم جدا #}
+      <button type="submit" name="_approve" class="tkd-approve-btn">
+        تایید و اعمال ویرایش
+      </button>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{# دکمه پایین فرم (اختیاری – اگر نمی‌خوای دوبار نمایش داده بشه، این بلوک رو کامل حذف کن) #}
+{% block submit_buttons_bottom %}
+  {{ block.super }}
+  {% if original and original.pk %}
+    <div class="tkd-approve-wrap">
+      <button type="submit" name="_approve" class="tkd-approve-btn">
+        تایید و اعمال ویرایش
+      </button>
+    </div>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,587 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}شماره‌گذاری بازی‌ها{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {{ form.media }}
+  <!-- html-to-image برای ساخت PNG از DOM -->
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+
+  <style>
+    :root{ --line-w:2px; --stroke:#444; --col-gap:88px; --hdrScale:1; --brand:#4f46e5; }
+
+    .mn-wrap{direction:rtl;margin:14px}
+    .mn-form{display:flex;flex-direction:column;gap:12px;max-width:980px}
+    .mn-row{display:flex;align-items:center;gap:12px}
+    .mn-actions{display:flex;align-items:center;gap:14px;margin-top:6px}
+    .mn-result{margin-top:18px;padding:12px;background:#f6f6f6;border:1px solid #ddd;border-radius:8px}
+    .byetip{font-size:12px;color:#666}
+    .byetic{font-size:15px;color:#00ff0d}
+    .byetid{font-size:15px;color:#ff0000}
+
+    .mn-form select{min-width:280px}
+    .mn-wrap > h1{ display:none !important; }
+
+    /* نوار ابزار بالای نتایج */
+    .pd-toolbar{
+      display:flex; align-items:center; gap:8px; justify-content:flex-end;
+      margin:18px auto 6px; max-width:860px;
+    }
+
+    /* کارت */
+    .cards{ display:flex; flex-direction:column; gap:24px; margin-top:18px; }
+    .card{
+      position:relative; border:1px solid #e6e6ef; border-radius:14px; background:#fff;
+      width:860px; margin:0 auto; box-sizing:border-box; overflow:hidden;
+    }
+
+    /* محتوا/عکس */
+    .card-content{ display:block; }
+    .card-snapshot{ display:none; width:100%; height:auto; }
+    .card.is-snap .card-content{ display:none; }
+    .card.is-snap .card-snapshot{ display:block; }
+
+    /* هدر */
+    .card .hd{
+      display:flex; align-items:center; justify-content:space-between;
+      gap:12px; padding:10px 12px; background:#f7f8ff; border-bottom:1px solid #ececf4;
+    }
+    .card .hd .left{
+      display:flex; flex-wrap:nowrap; gap:8px; align-items:center;
+      transform:scale(var(--hdrScale)); transform-origin:right center;
+    }
+    .pill{ background:#eef2ff; border:1px solid #dbe1ff; padding:4px 10px; border-radius:999px; font-size:12px; white-space:nowrap; color:#4338ca; }
+    .card .hd .brand-logo{ height:56px; width:auto; object-fit:contain; flex-shrink:0; }
+
+    .card .bd{ padding:0; }
+
+    /* برد */
+    .bubble.bye-mark{ background:linear-gradient(var(--stroke),var(--stroke)) center/70% 2px no-repeat,#fff !important; }
+    .bracket-wrap .view{
+      direction:ltr; width:827px; height:1130px; overflow:hidden; position:relative; box-sizing:border-box; background:#fff; display:block;
+    }
+    .bracket-wrap .board{
+      transform:scale(var(--scale,0.62)); transform-origin:top left;
+      width:max-content; display:flex; gap:var(--col-gap); justify-content:flex-start; align-items:flex-start; padding:0 14px 32px; margin:0; will-change:transform;
+    }
+
+    .player-input{
+      background:#fff; border:2px solid var(--stroke); border-radius:8px; padding:9px 12px; text-align:center; font-size:21px; font-weight:bolder; height:70px; color:#111; width:190px; max-width:250px; direction:rtl; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;
+    }
+    .player-input[readonly]{ -webkit-text-fill-color:#000; }
+    .bye{ opacity:.7; font-style:italic }
+    .bubble{ position:absolute; top:-25px; width:35px; height:36px; border-radius:50%; border:2px solid var(--stroke); background:#fff; color:#000; text-align:center; font-size:33px; line-height:36px; transform:translateY(-50%); z-index:3; pointer-events:none; }
+    .col{ display:flex; flex-direction:column; position:relative; }
+
+    /* راندها (تا ۳۲) */
+    .r1{ --box-h:46px; --gap-y:24px; --stub-len:35px; --stub-ext:60px; }
+    .r1 .item{ position:relative; height:var(--box-h); }
+    .r1 .stack{ display:flex; flex-direction:column; gap:var(--gap-y); }
+    .r1 .item::before{ content:""; position:absolute; top:50%; transform:translateY(-50%); right:-35px; width:35px; height:0; border-top:var(--line-w) solid var(--stroke); }
+    .r1 .item:nth-child(2n)::after{ content:""; position:absolute; top:-47px; height:calc(var(--box-h) + var(--gap-y)); right:-94px; width:calc(var(--line-w) + var(--stub-ext)); background:linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat, linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r1 .bubble{ top:-25% }
+    .r2{ --box-h:46px; --gap-y:calc(2 * 24px + 46px); --stub-len:35px; --stub-ext:72px; margin-top:calc((46px + 24px)/2); }
+    .r2 .item{ position:relative; height:var(--box-h); }
+    .r2 .stack{ display:flex; flex-direction:column; gap:var(--gap-y); }
+    .r2 .item::before{ content:""; position:absolute; top:105%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r2 .item:nth-child(2n)::after{ content:""; position:absolute; top:-93px; height:calc(var(--box-h) + var(--gap-y)); right:-95px; width:62px; background:linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat, linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r2 .bubble{ top:-52%; right:-28px; }
+    .r3{ --box-h:46px; --gap-y:calc(2*(46px + 24px) + 24px); --stub-len:35px; --stub-ext:84px; margin-top:calc((46px + 24px) + (46px + 24px)/2); }
+    .r3 .item{ position:relative; height:var(--box-h); }
+    .r3 .stack{ display:flex; flex-direction:column; gap:233px; }
+    .r3 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r3 .item:nth-child(2n)::after{ content:""; position:absolute; top:-235px; height:282px; right:-94px; width:59px; background:linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat, linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r3 .bubble{ top:-205% }
+    .r4{ --box-h:46px; --gap-y:calc(2*((46px + 24px)*2 + 24px)); --stub-len:35px; --stub-ext:96px; margin-top:243px; }
+    .r4 .item{ position:relative; height:var(--box-h); }
+    .r4 .stack{ display:flex; flex-direction:column; gap:512px; }
+    .r4 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r4 .item:nth-child(2n)::after{ content:""; position:absolute; top:-513px; height:558px; right:-95px; width:62px; background:linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat, linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r4 .bubble{ top:-508%; }
+    .r5{ --box-h:46px; --stub-len:35px; --stub-ext:110px; margin-top:520px; }
+    .r5 .item{ position:relative; height:var(--box-h); }
+    .r5 .stack{ display:flex; flex-direction:column; gap:1070px; }
+    .r5 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r5 .item:nth-child(2n)::after{ content:""; position:absolute; top:-1070px; height:1117px; right:-95px; width:62px; background:linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat, linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r5 .bubble{ top:-1114%; }
+    .r6{ margin-top:1077px; }
+    .r6 .champ{ position:relative; }
+    .champ .player-input{ width:240px; font-weight:bold; }
+
+    /* کنترل‌های کارت (فقط دانلود) */
+    .card-controls{ display:flex; gap:8px; justify-content:flex-end; align-items:center; padding:10px 12px; border-top:1px solid #f0f0f7; }
+    .card-controls .err{ color:#b91c1c; font-size:12px; }
+
+    /* اورلی انتظار */
+    .snapshot-overlay{
+      position:absolute; inset:0; background:rgba(0,0,0,.18);
+      display:none; flex-direction:column; align-items:center; justify-content:center; z-index:50;
+    }
+    .card.is-rendering .snapshot-overlay{ display:flex; }
+    .snapshot-overlay .wait-label{ margin-top:10px; color:#111; font-weight:700; background:#fff; padding:6px 10px; border-radius:10px; border:1px solid #ececec; }
+    .spinner{ width:38px; height:38px; border-radius:50%; border:4px solid #ddd; border-top-color:var(--brand); animation:spin 1s linear infinite; }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
+
+    /* دکمه‌ها */
+    .button{ cursor:pointer; border-radius:10px; padding:8px 14px; font-weight:600; border:1px solid #e5e7eb; background:#fff; }
+    .button.default{ background:#4f46e5; border-color:#4f46e5; color:#fff; }
+    .button.outline{ color:#4f46e5; border-color:#4f46e5; background:#fff; }
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="mn-wrap">
+    <form method="post" class="mn-form" id="mn-form">{% csrf_token %}
+      <div class="mn-row">
+        <label for="id_competition" style="min-width:110px">مسابقه:</label>
+        {{ form.competition }}
+      </div>
+
+      <div>
+        <label for="id_weights">اوزانی که قرعه‌کشی شده‌اند:</label>
+        <div style="max-width:960px">{{ form.weights }}</div>
+      </div>
+
+      <div class="mn-actions">
+        <label>{{ form.reset_old }} پاک کردن شماره‌های قبلی</label>
+        <label>{{ form.do_apply }} اعمال شماره‌گذاری</label>
+        <button type="submit" class="button default">اجرا</button>
+      </div>
+      <p class="byetip">توجه: بازی‌های «استراحت» شماره‌گذاری نمی‌شوند.</p>
+    </form>
+
+    {% if mats_map %}
+      <div class="mn-result">
+        <strong>نقشهٔ زمین‌ها:</strong>
+        <ul>
+          {% for mat, ws in mats_map %}
+            <li>زمین {{ mat }} → {{ ws|join:"، " }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+   {% if selected_competition_id %}
+  <div class="mn-actions" style="justify-content:flex-end; gap:8px; margin-top:10px;">
+    <form method="post" action="{% url 'admin:competitions_match_numbering_publish' %}" style="display:inline;">
+      {% csrf_token %}
+      <input type="hidden" name="competition" value="{{ selected_competition_id }}">
+      <button type="submit" class="button default">انتشار جدول</button>
+    </form>
+    <form method="post" action="{% url 'admin:competitions_match_numbering_publish' %}?unpublish=1" style="display:inline;">
+      {% csrf_token %}
+      <input type="hidden" name="competition" value="{{ selected_competition_id }}">
+      <button type="submit" class="button" title="پنهان‌سازی از پنل کاربر">لغو انتشار</button>
+    </form>
+    {% if is_bracket_published %}
+      <span class="byetic">وضعیت: منتشر شده</span>
+    {% else %}
+      <span class="byetid">وضعیت: منتشر نیست</span>
+    {% endif %}
+  </div>
+{% endif %}
+
+
+    {% if brackets and brackets|length %}
+      <div class="pd-toolbar" id="pd-toolbar">
+        <button type="button" class="button outline" id="btn-dl-all">دانلود همه تصاویر</button>
+      </div>
+
+      <div class="cards">
+        {% for p in brackets %}
+          <div class="card"
+               data-title="{{ p.title|escapejs }}"
+               data-belt="{{ p.belt|escapejs }}"
+               data-weight="{{ p.weight|escapejs }}"
+               data-date="{{ p.date_j|escapejs }}">
+            <div class="card-content">
+              <div class="hd">
+                <div class="left">
+                  <span class="pill">{{ p.title }}</span>
+                  <span class="pill">رده کمربندی: {{ p.belt }}</span>
+                  <span class="pill">ردهٔ وزنی: {{ p.weight }}</span>
+                  <span class="pill">زمین: <b class="mat-no" data-weight="{{ p.weight|escapejs }}">{{ p.mat_no|default:"—" }}</b></span>
+                  <span class="pill">تاریخ: {{ p.date_j }}</span>
+                </div>
+                {% if board_logo_url %}
+                  <img class="brand-logo" src="{{ board_logo_url }}" alt="لوگوی هیئت" crossorigin="anonymous">
+                {% endif %}
+              </div>
+
+              <div class="bd">
+                <div class="bracket-wrap" data-size='{{ p.size }}'>
+                  <div class="view">
+                    <div class="board">
+                      <div class="col r1"><div class="stack">{% for i in "0123456789abcdef" %}
+                        <div class="item"><input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                        <div class="item">
+                          <input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                          <input class="bubble" data-r="1" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                        </div>
+                      {% endfor %}</div></div>
+
+                      <div class="col r2"><div class="stack">{% for i in "01234567" %}
+                        <div class="item"><input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                        <div class="item">
+                          <input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                          <input class="bubble" data-r="2" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                        </div>
+                      {% endfor %}</div></div>
+
+                      <div class="col r3"><div class="stack">{% for i in "0123" %}
+                        <div class="item"><input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                        <div class="item">
+                          <input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                          <input class="bubble" data-r="3" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                        </div>
+                      {% endfor %}</div></div>
+
+                      <div class="col r4"><div class="stack">{% for i in "01" %}
+                        <div class="item"><input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                        <div class="item">
+                          <input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                          <input class="bubble" data-r="4" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                        </div>
+                      {% endfor %}</div></div>
+
+                      <div class="col r5"><div class="stack">
+                        <div class="item"><input class="player-input" data-r="5" data-i="0" data-pos="a" readonly></div>
+                        <div class="item">
+                          <input class="player-input" data-r="5" data-i="0" data-pos="b" readonly>
+                          <input class="bubble" data-r="5" data-i="0" data-num readonly style="right:-18px;">
+                        </div>
+                      </div></div>
+
+                      <div class="col r6"><div class="champ"><input class="player-input" value="🏆                      " readonly></div></div>
+                    </div>
+                  </div>
+
+                  <script type="application/json" class="matches-json">
+                    {{ p.matches_json|safe }}
+                  </script>
+                </div><!-- /bracket-wrap -->
+              </div>
+            </div><!-- /card-content -->
+
+            <img class="card-snapshot" alt="Bracket snapshot">
+
+            <div class="snapshot-overlay" aria-hidden="true">
+              <div class="spinner"></div>
+              <div class="wait-label">در حال اجرای عملیات…</div>
+            </div>
+
+            <div class="card-controls">
+              <button type="button" class="button default dl-one">دانلود تصویر</button>
+              <span class="err"></span>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+  (function () {
+    const DPR = Math.min(1.6, Math.max(1, window.devicePixelRatio || 1));
+
+    const form = document.getElementById('mn-form');
+    const compSel = document.getElementById('id_competition');
+    if (compSel && form) {
+      compSel.addEventListener('change', function () {
+        const doApply = document.getElementById('id_do_apply');
+        if (doApply) doApply.checked = false;
+        form.submit();
+      });
+    }
+
+    /* ----- Map زمین‌ها از بالای صفحه ----- */
+    const MatsByWeight = new Map([
+      {% if mats_map %}{% for mat, ws in mats_map %}{% for w in ws %}
+        ["{{ w|escapejs }}","{{ mat }}"],
+      {% endfor %}{% endfor %}{% endif %}
+    ]);
+    document.querySelectorAll('.mat-no').forEach(el=>{
+      const w = el.getAttribute('data-weight');
+      if (w && MatsByWeight.has(w)) el.textContent = MatsByWeight.get(w);
+    });
+
+    /* ====== توابع برد/فیت ====== */
+    function applyRoundShifting(wrap, declaredSize){
+      const size = Math.max(1, Number(declaredSize||0));
+      let roundsCount = 0; while ((1<<roundsCount) < size) roundsCount++;
+      roundsCount = Math.max(1, roundsCount);
+      const SHIFT = 5 - roundsCount;
+      for (let c=1; c<=5; c++){
+        const col = wrap.querySelector('.r'+c);
+        if (col) col.style.display = (c < (SHIFT+1)) ? 'none' : '';
+      }
+      const mapRound = r => r + SHIFT;
+      return { mapRound };
+    }
+
+    function readMatches(wrap){
+      const node = wrap.querySelector('script.matches-json');
+      const txt = node ? (node.textContent||'').trim() : '';
+      if (!txt) return [];
+      try { return JSON.parse(txt); } catch { return []; }
+    }
+
+    function fitToCard(wrap){
+      const view  = wrap.querySelector('.view');
+      const board = wrap.querySelector('.board');
+      if (!view || !board) return;
+      board.style.transform = 'scale(1)';
+      const pad = 6, naturalW = board.scrollWidth + pad, naturalH = board.scrollHeight + pad;
+      const vw = view.clientWidth, vh = view.clientHeight;
+      const scale = Math.min(vw/naturalW, vh/naturalH);
+      board.style.setProperty('--scale', Math.max(0, Math.min(1, scale)).toFixed(3));
+      board.style.transform = '';
+    }
+    function refitAll(){ document.querySelectorAll('.bracket-wrap').forEach(fitToCard); }
+
+    const isRest   = v => String(v||'').trim()==='استراحت';
+    const nonEmpty = v => String(v||'').trim() !== '';
+    function put(el, val){ if(!el) return; el.value = val || ""; el.title = el.value; if(isRest(el.value)) el.classList.add("bye"); else el.classList.remove("bye"); }
+
+    function getMatchNumber(m){
+      return m.match_number ?? m.number ?? m.number_on_mat ?? m.seq_no ?? m.seq ?? m.order_on_mat ?? m.order ?? "";
+    }
+
+    function firstRoundInfo(wrap, mapRound){
+      for (let r=1; r<=5; r++){
+        const vr = mapRound(r);
+        const count = wrap.querySelectorAll(`input.player-input[data-r="${vr}"][data-pos="a"]`).length;
+        if (count > 0) return { r, vr, count };
+      }
+      return { r:null, vr:null, count:0 };
+    }
+
+    function propagateByesOneStep(wrap, mapRound){
+      const info = firstRoundInfo(wrap, mapRound);
+      if (!info.r) return;
+      const r = info.r, vr = info.vr, count = info.count;
+
+      for (let i=0; i<count; i++){
+        const a = wrap.querySelector(`input.player-input[data-r="${vr}"][data-i="${i}"][data-pos="a"]`);
+        const b = wrap.querySelector(`input.player-input[data-r="${vr}"][data-i="${i}"][data-pos="b"]`);
+        const n = wrap.querySelector(`input.bubble[data-r="${vr}"][data-i="${i}"][data-num]`);
+
+        const restPair = (isRest(a?.value) ^ isRest(b?.value));
+        if (restPair && n){ n.classList.add('bye-mark'); n.value=""; n.title="استراحت"; }
+
+        const hasA = a && nonEmpty(a.value) && !isRest(a.value);
+        const hasB = b && nonEmpty(b.value) && !isRest(b.value);
+        if (!( (hasA && isRest(b?.value)) || (hasB && isRest(a?.value)) )) continue;
+
+        const winner = hasA ? a.value : b.value;
+        const nextVr = mapRound(r+1);
+        if (!wrap.querySelector(`input.player-input[data-r="${nextVr}"]`)) continue;
+        const nextI = Math.floor(i/2);
+        const nextPos = (i % 2 === 0) ? 'a' : 'b';
+        const nxt = wrap.querySelector(`input.player-input[data-r="${nextVr}"][data-i="${nextI}"][data-pos="${nextPos}"]`);
+        if (nxt && (!nonEmpty(nxt.value) || isRest(nxt.value))) put(nxt, winner);
+      }
+    }
+
+    /* --- حالت تک‌نفره: همه مسیرها استراحت و بدون شماره --- */
+    function detectSinglePlayerName(matches){
+      const s = new Set();
+      for (const m of matches){
+        const a = (m.player_a||'').trim(); if (a && a!=='استراحت') s.add(a);
+        const b = (m.player_b||'').trim(); if (b && b!=='استراحت') s.add(b);
+      }
+      return s.size===1 ? [...s][0] : '';
+    }
+
+    function fillSinglePathAllTheWay(wrap, name, mapRound, firstInfo){
+      if (!name || !firstInfo || !firstInfo.r) return;
+
+      // پیدا کردن جفت بازیکن در راند اول
+      let i = 0;
+      for (let idx=0; idx<firstInfo.count; idx++){
+        const a = wrap.querySelector(`input.player-input[data-r="${firstInfo.vr}"][data-i="${idx}"][data-pos="a"]`);
+        const b = wrap.querySelector(`input.player-input[data-r="${firstInfo.vr}"][data-i="${idx}"][data-pos="b"]`);
+        if (a?.value.trim()===name || b?.value.trim()===name){ i = idx; break; }
+      }
+
+      // راند اول: همه «استراحت»؛ جفت بازیکن: یک طرف بازیکن / طرف مقابل استراحت
+      for (let idx=0; idx<firstInfo.count; idx++){
+        const a = wrap.querySelector(`input.player-input[data-r="${firstInfo.vr}"][data-i="${idx}"][data-pos="a"]`);
+        const b = wrap.querySelector(`input.player-input[data-r="${firstInfo.vr}"][data-i="${idx}"][data-pos="b"]`);
+        const n = wrap.querySelector(`input.bubble[data-r="${firstInfo.vr}"][data-i="${idx}"][data-num]`);
+        if (idx === i){
+          const aIs = a?.value.trim()===name;
+          if (aIs){ if (b){ b.value="استراحت"; b.classList.add('bye'); } }
+          else { if (a){ a.value="استراحت"; a.classList.add('bye'); } if (b){ b.value=name; b.classList.remove('bye'); } }
+        }else{
+          if (a){ a.value="استراحت"; a.classList.add('bye'); }
+          if (b){ b.value="استراحت"; b.classList.add('bye'); }
+        }
+        if (n){ n.classList.add('bye-mark'); n.value=""; n.title="استراحت"; }
+      }
+
+      // از همان شاخه، نام را تا فینال بالا ببر؛ همه حباب‌ها بدون شماره
+      let r = firstInfo.r;
+      while (true){
+        const vr = mapRound(r);
+        const a = wrap.querySelector(`input.player-input[data-r="${vr}"][data-i="${i}"][data-pos="a"]`);
+        const b = wrap.querySelector(`input.player-input[data-r="${vr}"][data-i="${i}"][data-pos="b"]`);
+        const n = wrap.querySelector(`input.bubble[data-r="${vr}"][data-i="${i}"][data-num]`);
+        if (!a || !b) break;
+
+        if (!a.value || a.value==="استراحت"){ a.value=name; a.classList.remove('bye'); b.value="استراحت"; b.classList.add('bye'); }
+        else { b.value="استراحت"; b.classList.add('bye'); }
+        if (n){ n.classList.add('bye-mark'); n.value=""; n.title="استراحت"; }
+
+        const nextVr = mapRound(r+1);
+        if (!wrap.querySelector(`input.player-input[data-r="${nextVr}"]`)) break;
+
+        const nextI = Math.floor(i/2);
+        const nextPos = (i % 2 === 0) ? 'a' : 'b';
+        const nxt = wrap.querySelector(`input.player-input[data-r="${nextVr}"][data-i="${nextI}"][data-pos="${nextPos}"]`);
+        const nxtOpp = wrap.querySelector(`input.player-input[data-r="${nextVr}"][data-i="${nextI}"][data-pos="${nextPos==='a'?'b':'a'}"]`);
+        if (nxt){ nxt.value = name; nxt.classList.remove('bye'); nxt.title = name; }
+        if (nxtOpp){ nxtOpp.value = "استراحت"; nxtOpp.classList.add('bye'); }
+
+        i = nextI; r += 1;
+      }
+
+      const champ = wrap.querySelector('.r6 .champ .player-input');
+      if (champ){ champ.value = `🏆  ${name}`; champ.title = name; }
+    }
+
+    function applyDataAndFit(wrap){
+      const matches = readMatches(wrap);
+      const declaredSize = wrap.getAttribute('data-size') || '';
+      const { mapRound } = applyRoundShifting(wrap, declaredSize);
+      const fr = firstRoundInfo(wrap, mapRound);
+
+      if (matches.length){
+        const byRound = new Map();
+        for (const m of matches){
+          const r = Number(m.round_no || 1);
+          if (!byRound.has(r)) byRound.set(r, []);
+          byRound.get(r).push(m);
+        }
+        for (const [r, arr] of byRound) arr.sort((a,b)=>(a.slot_a||0)-(b.slot_a||0));
+
+        for (const [r, arr] of byRound){
+          const vr = mapRound(r);
+          const isFirstRound = (vr === fr.vr);
+
+          arr.forEach((m, idx)=>{
+            const a = wrap.querySelector(`input.player-input[data-r="${vr}"][data-i="${idx}"][data-pos="a"]`);
+            const b = wrap.querySelector(`input.player-input[data-r="${vr}"][data-i="${idx}"][data-pos="b"]`);
+            const n = wrap.querySelector(`input.bubble[data-r="${vr}"][data-i="${idx}"][data-num]`);
+
+            const hasA = nonEmpty(m.player_a);
+            const hasB = nonEmpty(m.player_b);
+
+            if (a){ put(a, hasA ? m.player_a : ((hasB && m.is_bye && isFirstRound) ? "استراحت" : a.value)); }
+            if (b){ put(b, hasB ? m.player_b : ((hasA && m.is_bye && isFirstRound) ? "استراحت" : b.value)); }
+
+            if (n) {
+              const restPair = isFirstRound && (isRest(a?.value) ^ isRest(b?.value));
+              if (restPair) { n.classList.add('bye-mark'); n.value = ""; n.title = "استراحت"; }
+              else { n.classList.remove('bye-mark'); n.value = String(getMatchNumber(m) || ""); n.title = n.value; }
+            }
+          });
+        }
+      }
+
+      const singleName = detectSinglePlayerName(matches);
+      if (singleName) fillSinglePathAllTheWay(wrap, singleName, mapRound, fr);
+      else propagateByesOneStep(wrap, mapRound);
+
+      fitToCard(wrap);
+    }
+
+    /* ====== فیت هدر (یک‌خطی با اسکیل) ====== */
+    function fitHeader(card){
+      const hd = card.querySelector('.hd'); if (!hd) return;
+      const left = hd.querySelector('.left'); const logo = hd.querySelector('.brand-logo');
+      const avail = hd.clientWidth - (logo?.offsetWidth || 0) - 24;
+      const need = left.scrollWidth;
+      let scale = 1; if (need > avail) scale = Math.max(0.85, Math.min(1, avail / need));
+      card.style.setProperty('--hdrScale', scale.toFixed(3));
+    }
+    function fitAllHeaders(){ document.querySelectorAll('.card').forEach(fitHeader); }
+
+    /* ====== Snapshot: کل کارت → PNG ====== */
+    function filenameFromCard(card){
+      const title = (card.dataset.title||'').trim();
+      const belt  = (card.dataset.belt||'').trim();
+      const w     = (card.dataset.weight||'').trim();
+      const date  = (card.dataset.date||'').trim();
+      const mat   = (card.querySelector('.mat-no')?.textContent || '—').trim();
+      const slug = s => s.replace(/\s+/g,'-').replace(/[^\u0600-\u06FF\w\-]+/g,'').replace(/\-+/g,'-').replace(/^\-+|\-+$/g,'') || 'bracket';
+      return `${slug(title)}-${slug(belt)}-${slug(w)}-${slug(mat)}${date?'-'+slug(date):''}.png`;
+    }
+
+    async function snapshotCard(card){
+      const lib = window.htmlToImage;
+      if (!lib || !lib.toPng) return;
+      const srcNode = card.querySelector('.card-content'); if (!srcNode) return;
+
+      card.classList.add('is-rendering');
+      await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+      try { if (document.fonts?.ready) await document.fonts.ready; } catch {}
+
+      fitHeader(card);
+
+      try{
+        const dataUrl = await lib.toPng(srcNode, {
+          pixelRatio: DPR, backgroundColor: '#fff', cacheBust: true,
+          filter: (n) => {
+            if (n?.classList?.contains?.('snapshot-overlay')) return false;
+            return true;
+          }
+        });
+        const img = card.querySelector('.card-snapshot');
+        img.src = dataUrl;
+        img.setAttribute('data-filename', filenameFromCard(card));
+        card.classList.add('is-snap');
+      }catch(e){
+        card.querySelector('.card-controls .err')?.replaceChildren(document.createTextNode('ساخت تصویر ناموفق (CORS یا DOM سنگین).'));
+      }finally{
+        card.classList.remove('is-rendering');
+      }
+    }
+
+    function snapshotAll(){
+      document.querySelectorAll('.card').forEach(snapshotCard);
+    }
+
+    /* ====== دانلود ====== */
+    function downloadOne(card){
+      const img = card.querySelector('.card-snapshot'); if (!img?.src) return;
+      const a = document.createElement('a');
+      a.href = img.src;
+      a.download = img.getAttribute('data-filename') || filenameFromCard(card);
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    document.addEventListener('click', (e)=>{
+      const btn = e.target.closest('.dl-one');
+      if (btn){
+        const card = btn.closest('.card'); if (card) downloadOne(card);
+      }
+    });
+
+    const btnDlAll = document.getElementById('btn-dl-all');
+    if (btnDlAll){
+      btnDlAll.addEventListener('click', ()=>{
+        document.querySelectorAll('.card').forEach(downloadOne);
+      });
+    }
+
+    /* ====== اجرا ====== */
+    document.querySelectorAll('.bracket-wrap').forEach(applyDataAndFit);
+    fitAllHeaders();
+    setTimeout(()=>{ fitAllHeaders(); snapshotAll(); }, 160);
+    let t; window.addEventListener('resize', ()=>{ clearTimeout(t); t=setTimeout(()=>{ refitAll(); fitAllHeaders(); }, 120); });
+  })();
+  </script>
+{% endblock %}

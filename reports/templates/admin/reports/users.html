@@ -1,0 +1,181 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}گزارش کاربران{% endblock %}
+
+{# ======================= CSS / Styles ======================= #}
+{% block extrastyle %}{{ block.super }}
+  {# media فرم‌ها #}
+  {{ form.media.css }}{{ coach_form.media.css }}{{ club_form.media.css }}
+  {{ board_form.media.css }}{{ cr_form.media.css }}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@majidh1/jalalidatepicker@0.6.0/dist/jalali-datepicker.min.css">
+
+  <style>
+    /* ورودی‌های تاریخ */
+    .datetimeshortcuts,.calendarbox{display:none!important}
+    input.jalali-date-input{direction:ltr;text-align:center}
+
+    /* کارت‌های خلاصه */
+    .stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+    @media (max-width:1200px){ .stats-grid{grid-template-columns:repeat(3,minmax(0,1fr));} }
+    @media (max-width:800px){ .stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));} }
+    .stat-card{border:1px solid #e5e7eb;border-radius:10px;padding:12px;background:#fff}
+    .stat-title{font-size:12px;color:#6b7280;margin-bottom:6px}
+    .stat-value{font-size:20px;font-weight:700}
+    .stat-note{font-size:12px;color:#6b7280;margin-top:6px;line-height:1.7}
+
+    /* ظاهر یکدست برای سکشن‌ها با details/summary */
+    details.module{border:1px solid #e5e7eb;border-radius:14px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    details.module + details.module{margin-top:16px}
+    details.module > summary{list-style:none;padding:12px 14px;cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px}
+    details.module > summary::-webkit-details-marker{display:none}
+    details.module > summary h3{margin:0;font-size:16px}
+    details.module[open] > summary{border-bottom:1px solid #eef2f7;background:#f8fafc}
+    details.module > *:not(summary){padding:12px 14px}
+
+    /* جدول‌های داخل صفحه (غیر چاپ) */
+    .table-wrap{max-height:62vh;overflow:auto;border:1px solid #e5e7eb;border-radius:14px;margin-top:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    table.report{width:100%;border-collapse:collapse;background:#fff}
+    table.report th,table.report td{border-bottom:1px solid #f1f5f9;padding:10px;text-align:center;white-space:nowrap}
+    table.report thead th{position:sticky;top:0;background:#f8fafc;z-index:1;font-weight:700;color:#374151}
+    table.report tbody tr:nth-child(odd){background:#e5ecff}
+    table.report tbody tr:hover{background:#f7faff}
+    .badge{display:inline-block;min-width:40px;text-align:center;padding:4px 10px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;font-size:12px}
+    .num{font-variant-numeric:tabular-nums}
+  </style>
+{% endblock %}
+
+{# ======================= JS / Head Scripts ======================= #}
+{% block extrahead %}{{ block.super }}
+  {{ form.media.js }}{{ coach_form.media.js }}{{ club_form.media.js }}
+  {{ board_form.media.js }}{{ cr_form.media.js }}
+  <script src="{% url 'admin:jsi18n' %}"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@majidh1/jalalidatepicker@0.6.0/dist/jalali-datepicker.min.js"></script>
+
+  <script>
+    // راه‌اندازی ورودی‌های تاریخ جلالی
+    document.addEventListener('DOMContentLoaded',function(){
+      var sel='input[name="start"],input[name="end"],.jalali-date-input';
+      document.querySelectorAll(sel).forEach(function(el){
+        try{el.type='text'}catch(e){}
+        el.classList.add('jalali-date-input');
+        el.setAttribute('data-jdp','true');
+        el.setAttribute('data-jdp-only-date','true');
+        if(!el.getAttribute('data-jdp-min-date')) el.setAttribute('data-jdp-min-date','1330-01-01');
+        if(!el.getAttribute('data-jdp-max-date')) el.setAttribute('data-jdp-max-date','1420-12-29');
+        el.classList.remove('vDateField','vTimeField','vDateTimeField');
+        var sib=el.nextElementSibling;
+        if(sib && (sib.classList.contains('datetimeshortcuts')||sib.classList.contains('calendarbox'))) sib.remove();
+      });
+      if(window.jalaliDatepicker && typeof jalaliDatepicker.startWatch==='function'){
+        jalaliDatepicker.startWatch({selector:'.jalali-date-input',time:false,minDate:'1330-01-01',maxDate:'1420-12-29',topSpace:6});
+      }
+    });
+
+    // چاپ یک بخش با استفاده از محتوای چاپ مخفی
+    function printPartial(wrapperId){
+      var el=document.getElementById(wrapperId);
+      if(!el){ alert('بخش چاپ پیدا نشد'); return; }
+      var html = `
+        <!doctype html><html dir="rtl" lang="fa">
+        <head>
+          <meta charset="utf-8"><title>چاپ</title>
+          <style>
+            @page{ size:A4 landscape; margin:8mm; } /* پیش‌فرض landscape برای جا شدن */
+            html,body{ margin:0; padding:0; background:#fff; }
+            *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+          </style>
+        </head>
+        <body>` + el.innerHTML + `</body></html>`;
+      var win = window.open('', '_blank');
+      win.document.open(); win.document.write(html); win.document.close();
+      win.focus(); win.print();
+      setTimeout(function(){ try{ win.close(); }catch(e){} }, 250);
+    }
+
+    // ابزار جستجو برای جدول‌های پارشیال (در صورت نیاز استفاده می‌شوند)
+    function toEnDigits(s){var fa='۰۱۲۳۴۵۶۷۸۹',en='0123456789',o='';s=String(s||'');for(var i=0;i<s.length;i++){var ch=s[i],idx=fa.indexOf(ch);o+=idx>=0?en[idx]:ch}return o}
+    function normalizeText(str){str=String(str||'').toLowerCase().replace(/\u200c|‌/g,'');str=toEnDigits(str).replace(/[\/.\u2013\u2014\u2212]/g,'-');return str.replace(/\s+/g,' ').trim()}
+  </script>
+{% endblock %}
+
+{# ======================= Body ======================= #}
+{% block content %}
+<div style="direction:rtl">
+  <h1>گزارش کاربران</h1>
+  <p style="margin:8px 0"><a class="button" href="{% url 'reports:center' %}">بازگشت به مرکز گزارش‌گیری</a></p>
+
+  {# کارت‌های خلاصه #}
+  <div class="module" style="padding:12px; margin-bottom:12px">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-title">کل کاربران</div><div class="stat-value">{{ data.summary.total_all }}</div></div>
+      <div class="stat-card"><div class="stat-title">بازیکنان</div><div class="stat-value">{{ data.summary.players_all }}</div></div>
+      <div class="stat-card"><div class="stat-title">مربی‌ها</div><div class="stat-value">{{ data.summary.coaches_all }}</div></div>
+      <div class="stat-card"><div class="stat-title">داورها</div><div class="stat-value">{{ data.summary.referees_all }}</div></div>
+      <div class="stat-card"><div class="stat-title">باشگاه‌ها</div><div class="stat-value">{{ data.summary.clubs_all }}</div></div>
+      <div class="stat-card" style="grid-column:1/-1">
+        <div class="stat-title">کاربران جدید (۷ روز اخیر)</div>
+        <div class="stat-value">{{ data.summary.new_last7_total }}</div>
+        <div class="stat-note">
+          بازیکن: {{ data.summary.new_last7_players }} |
+          مربی: {{ data.summary.new_last7_coaches }} |
+          داور: {{ data.summary.new_last7_referees }} |
+          باشگاه: {{ data.summary.new_last7_clubs }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ------------------ شاگردان اساتید ------------------ #}
+  <details class="module no-print" {% if request.GET.show_students == '1' or students %}open{% endif %}>
+    <summary><h3>شاگردان اساتید</h3></summary>
+    {% include "admin/reports/partials/coach_students.html" %}
+  </details>
+
+  {# ------------------ شاگردان باشگاه‌ها ------------------ #}
+  <details class="module no-print" {% if request.GET.show_club_students == '1' or club_students %}open{% endif %}>
+    <summary><h3>شاگردان باشگاه‌ها</h3></summary>
+    {% include "admin/reports/partials/club_students.html" %}
+  </details>
+
+  {# ------------------ شاگردان هیئت‌ها ------------------ #}
+  <details class="module no-print" {% if request.GET.show_board_students == '1' or board_students %}open{% endif %}>
+    <summary><h3>شاگردان هیئت‌ها</h3></summary>
+    {% include "admin/reports/partials/board_students.html" %}
+  </details>
+
+  {# ------------------ مربی و داور هیئت‌ها ------------------ #}
+  <details class="module no-print" {% if request.GET.show_board_coaches_referees == '1' or board_coaches_referees %}open{% endif %}>
+    <summary><h3>مربی و داور هیئت‌ها</h3></summary>
+    {% include "admin/reports/partials/board_coaches_referees.html" %}
+  </details>
+
+  {# ------------------ محتوای چاپ مخفی ------------------ #}
+  {% if students %}
+    <div id="print-cs" style="display:none">
+      {% include "admin/reports/_coach_students_print.html" with rows=students.rows coach_name=coach_display %}
+    </div>
+  {% endif %}
+
+  {% if club_students %}
+    <div id="print-cl" style="display:none">
+      {% include "admin/reports/_club_students_print.html" with rows=club_students.rows club_name=club_display %}
+    </div>
+  {% endif %}
+
+  {% if board_students %}
+    <div id="print-bd" style="display:none">
+      {% include "admin/reports/_board_students_print.html" with rows=board_students.rows board_name=board_display %}
+    </div>
+  {% endif %}
+
+  {% if board_coaches_referees %}
+  <div id="cr-print" style="display:none">
+    {# قبلی: board_name=board_display  #}
+    {% include "admin/reports/_board_coaches_referees_print.html"
+       with rows=board_coaches_referees.rows board_name=board_display_for_cr role_display=role_display %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

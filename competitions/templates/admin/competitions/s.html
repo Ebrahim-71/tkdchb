@@ -1,0 +1,465 @@
+{% extends "admin/base_site.html" %}
+
+{% load static %}
+
+{% block title %}شماره‌گذاری بازی‌ها{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {{ form.media }}
+  <style>
+    .mn-wrap{direction:rtl;margin:14px}
+    .mn-form{display:flex;flex-direction:column;gap:12px;max-width:980px}
+    .mn-row{display:flex;align-items:center;gap:12px}
+    .mn-actions{display:flex;align-items:center;gap:14px;margin-top:6px}
+    .mn-result{margin-top:18px;padding:12px;background:#f6f6f6;border:1px solid #ddd;border-radius:8px}
+    .byetip{font-size:12px;color:#666}
+    .mn-form select{min-width:280px}
+
+    /* کارت‌ها (نمایش عادی) */
+    .cards{ display:flex; flex-direction:column; gap:24px; margin-top:18px; }
+    .card{ border:1px solid #e6e6ef; border-radius:14px; background:#fff; width:830px; margin:0 auto; box-sizing:border-box; }
+    .card .hd{ display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; padding:10px 12px; background:#f7f8ff; border-bottom:1px solid #ececf4; justify-content:space-between; }
+    .card .hd .left{ display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center; }
+    .pill{ background:#eef2ff; border:1px solid #dbe1ff; padding:4px 10px; border-radius:999px; font-size:12px; }
+    .card .bd{ padding:0; }
+
+    :root{ --line-w:2px; --stroke:#444; --col-gap:88px; }
+
+    .bracket-wrap .view{
+      direction:ltr; width:827px; height:1130px; overflow:hidden;
+      position:relative; box-sizing:border-box; background:#fff;
+      display:block; /* در نمایش عادی block، در چاپ flex می‌شود */
+    }
+    .bracket-wrap .board{
+      transform:scale(var(--scale,0.62)); transform-origin:top left;
+      width:max-content; display:flex; gap:var(--col-gap); justify-content:flex-start; align-items:flex-start;
+      padding:0 14px 32px; margin:0; will-change:transform;
+    }
+
+    .player-input{     background: #fff;
+    border: 2px solid var(--stroke);
+    border-radius: 8px;
+    padding: 9px 12px;
+    text-align: center;
+    font-size: 21px;
+    font-weight: bolder;
+    height: 70px;
+    color: #111;
+    width: 190px;
+    max-width: 250px; }
+    .bye{ opacity:.6; font-style:italic }
+    .bubble{ position:absolute; top:-25px; width:35px; height:36px; border-radius:50%; border:2px solid var(--stroke); background:#fff; color:#000; text-align:center; font-size:33px; line-height:36px; transform:translateY(-50%); z-index:1; pointer-events:none; }
+    .col{ display:flex; flex-direction:column; position:relative; }
+
+    /* راندها (نمایش عادی) */
+    .r1{ --box-h:46px; --gap-y:24px; --stub-len:35px; --stub-ext:60px; }
+    .r1 .item{ position:relative; height:var(--box-h); }
+    .r1 .stack{ display:flex; flex-direction:column; gap:var(--gap-y); }
+    .r1 .item::before{ content:""; position:absolute; top:50%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r1 .item:nth-child(2n)::after{ content:""; position:absolute; top:-47px; height:calc(var(--box-h) + var(--gap-y)); right:-94px; width:calc(var(--line-w) + var(--stub-ext));
+      background: linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat,
+                  linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r1 .bubble{ top:-25% }
+
+    .r2{ --box-h:46px; --gap-y:calc(2 * 24px + 46px); --stub-len:35px; --stub-ext:72px; }
+    .r2{ margin-top: calc((46px + 24px)/2); }
+    .r2 .item{ position:relative; height:var(--box-h); }
+    .r2 .stack{ display:flex; flex-direction:column; gap:var(--gap-y); }
+    .r2 .item::before{ content:""; position:absolute; top:105%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r2 .item:nth-child(2n)::after{ content:""; position:absolute; top:-93px; height:calc(var(--box-h) + var(--gap-y)); right:-95px; width:62px;
+      background: linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat,
+                  linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r2 .bubble{ top:-52%; right:-28px; }
+
+    .r3{ --box-h:46px; --gap-y:calc(2*(46px + 24px) + 24px); --stub-len:35px; --stub-ext:84px; }
+    .r3{ margin-top: calc((46px + 24px) + (46px + 24px)/2); }
+    .r3 .item{ position:relative; height:var(--box-h); }
+    .r3 .stack{ display:flex; flex-direction:column; gap:233px; }
+    .r3 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r3 .item:nth-child(2n)::after{ content:""; position:absolute; top:-235px; height:282px; right:-94px; width:59px;
+      background: linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat,
+                  linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r3 .bubble{ top:-205% }
+
+    .r4{ --box-h:46px; --gap-y:calc(2*((46px + 24px)*2 + 24px)); --stub-len:35px; --stub-ext:96px; }
+    .r4{ margin-top:243px }
+    .r4 .item{ position:relative; height:var(--box-h); }
+    .r4 .stack{ display:flex; flex-direction:column; gap:512px; }
+    .r4 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r4 .item:nth-child(2n)::after{ content:""; position:absolute; top:-513px; height:558px; right:-95px; width:62px;
+      background: linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat,
+                  linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r4 .bubble{ top:-508%; }
+
+    .r5{ --box-h:46px; --stub-len:35px; --stub-ext:110px; }
+    .r5{ margin-top:520px }
+    .r5 .item{ position:relative; height:var(--box-h); }
+    .r5 .stack{ display:flex; flex-direction:column; gap:1070px; }
+    .r5 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
+    .r5 .item:nth-child(2n)::after{ content:""; position:absolute; top:-1070px; height:1117px; right:-95px; width:62px;
+      background: linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat,
+                  linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
+    .r5 .bubble{ top:-1114%; }
+
+    .r6{ margin-top:1077px; }
+    .r6 .champ{ position:relative; }
+    .champ .player-input{ width:240px; font-weight:bold; }
+
+    /* =================== چاپ (A4) =================== */
+    /* === چاپ (A4) — ساده و مطمئن === */
+@media print {
+  @page { size: A4 portrait; margin: 8mm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* چیزهای اضافی چاپ نشن */
+  #header, #user-tools, #nav-sidebar, .breadcrumbs,
+  .mn-form, .mn-actions, .mn-result, .byetip, .print-btn{ display:none !important; }
+
+  /* هر کارت یک صفحه تمیز */
+  .cards{ margin:0 !important; padding:0 !important; }
+  .card{
+    width: calc(210mm - 16mm) !important; /* 8mm حاشیه هر طرف */
+    margin: 0 auto !important;
+    border:0 !important; border-radius:0 !important; box-shadow:none !important;
+    page-break-inside: avoid; break-inside: avoid; page-break-after: always;
+  }
+  .card:last-child{ page-break-after: auto; }
+  .card .hd{ background:#fff !important; border:0 !important; padding:0 0 4mm !important; }
+
+  /* نکتهٔ مهم: اجازه بده محتوای اسکیل‌خورده بیرون بزند (بریده نشود) */
+  .bracket-wrap .view{
+    width:100% !important;
+    height:auto !important;                 /* ارتفاع را JS ست می‌کند؛ auto هم مشکلی ندارد */
+    overflow: visible !important;           /* ← جلوِ بریده‌شدن را می‌گیرد */
+    background:#fff !important;
+  }
+
+  /* برای چاپ از اسکیل جداگانه استفاده می‌کنیم */
+  .bracket-wrap .board{
+    transform-origin: top left !important;
+    transform: scale(var(--print-scale, 0.80)) !important;
+    gap: 64px !important;
+  }
+
+  /* خطوط واضح‌تر */
+  :root{ --line-w: 2.2px; }
+  .r1 .item::before, .r2 .item::before, .r3 .item::before, .r4 .item::before, .r5 .item::before{
+    background:none !important; border-top:var(--line-w) solid var(--stroke) !important;
+  }
+  .r1 .item:nth-child(2n)::after,
+  .r2 .item:nth-child(2n)::after,
+  .r3 .item:nth-child(2n)::after,
+  .r4 .item:nth-child(2n)::after,
+  .r5 .item:nth-child(2n)::after{
+    background:none !important;
+    border-left:var(--line-w) solid var(--stroke) !important;
+    border-top: var(--line-w) solid var(--stroke) !important;
+  }
+}
+
+  </style>
+{% endblock %}
+
+{% block content %}
+  <div class="mn-wrap">
+    <h1>شماره‌گذاری بازی‌ها (مرحله‌به‌مرحله/به‌تفکیک زمین)</h1>
+
+    <form method="post" class="mn-form" id="mn-form">{% csrf_token %}
+      <div class="mn-row">
+        <label for="id_competition" style="min-width:110px">مسابقه:</label>
+        {{ form.competition }}
+      </div>
+
+      <div>
+        <label for="id_weights">اوزانی که قرعه‌کشی شده‌اند:</label>
+        <div style="max-width:960px">{{ form.weights }}</div>
+      </div>
+
+      <div class="mn-actions">
+        <label>{{ form.reset_old }} پاک کردن شماره‌های قبلی</label>
+        <label>{{ form.do_apply }} اعمال شماره‌گذاری</label>
+        <button type="submit" class="button default">اجرا</button>
+      </div>
+      <p class="byetip">توجه: بازی‌های «استراحت» شماره‌گذاری نمی‌شوند.</p>
+    </form>
+
+    {% if mats_map %}
+      <div class="mn-result">
+        <strong>نقشهٔ زمین‌ها:</strong>
+        <ul>
+          {% for mat, ws in mats_map %}
+            <li>زمین {{ mat }} → {{ ws|join:"، " }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if result %}
+      <div class="mn-result">
+        <strong>خلاصهٔ شماره‌گذاری:</strong>
+        <ul>
+          {% for mat, last in result.items %}
+            <li>زمین {{ mat }} → آخرین شماره: {{ last }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    {% if brackets and brackets|length %}
+      <div class="mn-actions" style="justify-content:flex-end;margin:10px 0 0">
+        <button type="button" class="button default print-btn" onclick="printBrackets()">چاپ جدول‌ها</button>
+      </div>
+
+      <div class="cards">
+        {% for p in brackets %}
+          <div class="card">
+            <div class="hd">
+              <div class="left">
+                <span class="pill">{{ p.title }}</span>
+                <span class="pill">رده کمربندی: {{ p.belt }}</span>
+                <span class="pill">ردهٔ وزنی: {{ p.weight }}</span>
+                <span class="pill">زمین: <b class="mat-no" data-weight="{{ p.weight|escapejs }}">{{ p.mat_no|default:"—" }}</b></span>
+                <span class="pill">تاریخ: {{ p.date_j }}</span>
+              </div>
+            </div>
+
+            <div class="bd">
+              <div class="bracket-wrap" data-matches='{{ p.matches_json|safe }}' data-size='{{ p.size }}'>
+                <div class="view">
+                  <div class="board">
+                    <div class="col r1"><div class="stack">{% for i in "0123456789abcdef" %}
+                      <div class="item"><input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="a" disabled></div>
+                      <div class="item">
+                        <input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="b" disabled>
+                        <input class="bubble" data-r="1" data-i="{{ forloop.counter0 }}" data-num disabled style="right:-28px;">
+                      </div>
+                    {% endfor %}</div></div>
+
+                    <div class="col r2"><div class="stack">{% for i in "01234567" %}
+                      <div class="item"><input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="a" disabled></div>
+                      <div class="item">
+                        <input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="b" disabled>
+                        <input class="bubble" data-r="2" data-i="{{ forloop.counter0 }}" data-num disabled style="right:-28px;">
+                      </div>
+                    {% endfor %}</div></div>
+
+                    <div class="col r3"><div class="stack">{% for i in "0123" %}
+                      <div class="item"><input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="a" disabled></div>
+                      <div class="item">
+                        <input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="b" disabled>
+                        <input class="bubble" data-r="3" data-i="{{ forloop.counter0 }}" data-num disabled style="right:-28px;">
+                      </div>
+                    {% endfor %}</div></div>
+
+                    <div class="col r4"><div class="stack">{% for i in "01" %}
+                      <div class="item"><input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="a" disabled></div>
+                      <div class="item">
+                        <input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="b" disabled>
+                        <input class="bubble" data-r="4" data-i="{{ forloop.counter0 }}" data-num disabled style="right:-28px;">
+                      </div>
+                    {% endfor %}</div></div>
+
+                    <div class="col r5"><div class="stack">
+                      <div class="item"><input class="player-input" data-r="5" data-i="0" data-pos="a" disabled></div>
+                      <div class="item">
+                        <input class="player-input" data-r="5" data-i="0" data-pos="b" disabled>
+                        <input class="bubble" data-r="5" data-i="0" data-num disabled style="right:-18px;">
+                      </div>
+                    </div></div>
+
+                    <div class="col r6"><div class="champ"><input class="player-input" value="🏆                      " disabled></div></div>
+                  </div>
+                </div>
+              </div><!-- /bracket-wrap -->
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+
+  <script>
+  (function () {
+    const form = document.getElementById('mn-form');
+    const compSel = document.getElementById('id_competition');
+    if (compSel && form) {
+      compSel.addEventListener('change', function () {
+        const doApply = document.getElementById('id_do_apply');
+        if (doApply) doApply.checked = false;
+        form.submit();
+      });
+    }
+
+    /* وزن → شماره زمین از mats_map */
+    const MatsByWeight = new Map([
+      {% if mats_map %}
+        {% for mat, ws in mats_map %}
+          {% for w in ws %}
+            ["{{ w|escapejs }}","{{ mat }}"],
+          {% endfor %}
+        {% endfor %}
+      {% endif %}
+    ]);
+    document.querySelectorAll('.mat-no').forEach(el=>{
+      const w = el.getAttribute('data-weight');
+      if (w && MatsByWeight.has(w)) el.textContent = MatsByWeight.get(w);
+    });
+
+    /* نگاشت تعداد راند واقعی به ستون‌های موجود */
+    function applyRoundShifting(wrap, declaredSize){
+      const size = Math.max(1, Number(declaredSize||0));
+      let roundsCount = 0;
+      while ((1<<roundsCount) < size) roundsCount++;
+      roundsCount = Math.max(1, roundsCount);
+      const SHIFT = 5 - roundsCount;     // 5 ستون تا فینال
+      for (let c=1; c<=5; c++){
+        const col = wrap.querySelector('.r'+c);
+        if (col) col.style.display = (c < (SHIFT+1)) ? 'none' : '';
+      }
+      const mapRound = r => r + SHIFT;
+      return { mapRound };
+    }
+
+    /* فیت نمایش عادی */
+    function fitToCard(wrap){
+      const view  = wrap.querySelector('.view');
+      const board = wrap.querySelector('.board');
+      if (!view || !board) return;
+
+      const prevTransform = board.style.transform;
+      board.style.transform = 'scale(1)';
+
+      const pad = 2;
+      const naturalW = board.scrollWidth + pad;
+      const naturalH = board.scrollHeight + pad;
+
+      const vw = view.clientWidth;
+      const vh = view.clientHeight;
+
+      const scaleX = vw / naturalW;
+      const scaleY = vh / naturalH;
+      const scale  = Math.min(scaleX, scaleY);
+
+      board.style.setProperty('--scale', (Math.floor(scale*100)/100).toString());
+      board.style.transform = prevTransform && prevTransform.includes('scale(') ? '' : '';
+    }
+    function refitAll(){ document.querySelectorAll('.bracket-wrap').forEach(fitToCard); }
+
+    /* کمکی: خواندن مقدار mm از متغیر CSS (اگر px بود به mm تبدیل می‌کنیم) */
+    function readCssSizeMm(varName){
+      const raw = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+      if(!raw) return 0;
+      const m = raw.match(/([\d.]+)\s*(mm|px)?/i);
+      if(!m) return 0;
+      const val = parseFloat(m[1]||'0');
+      const unit = (m[2]||'mm').toLowerCase();
+      if(unit==='px'){ return val * (25.4/96); } // px→mm
+      return val; // mm
+    }
+
+    /* فیت مخصوص چاپ: کارت کاملِ پرتره و وسط‌چین */
+    function fitForPrint(){
+      // واحدها
+      const pxPerMm = 96/25.4;
+
+      const pageMarginMm = readCssSizeMm('--print-page-margin') || 8;
+      const innerPadMm   = readCssSizeMm('--print-inner-pad')   || 5;
+
+      // عرض/ارتفاع موثر صفحه
+      const pageWmm = 210 - 2*pageMarginMm;
+      const pageHmm = 297 - 2*pageMarginMm;
+
+      document.querySelectorAll('.card').forEach(card=>{
+        const view  = card.querySelector('.view');
+        const board = card.querySelector('.board');
+        const hd    = card.querySelector('.hd');
+        if (!view || !board) return;
+
+        // ارتفاع قابل استفاده = ارتفاع صفحه - هدر - پدهای داخلی
+        const headerPx = hd ? hd.getBoundingClientRect().height : 0;
+        const headerMm = headerPx / pxPerMm;
+        const availHmm = Math.max(0, pageHmm - headerMm - 2*innerPadMm);
+
+        // تنظیم view
+        view.style.width  = '100%';
+        view.style.height = availHmm.toFixed(2) + 'mm';
+
+        // اندازه طبیعی برد
+        const prev = board.style.transform;
+        board.style.transform = 'scale(1)';
+        const pad = 2;
+        const naturalW = board.scrollWidth + pad;
+        const naturalH = board.scrollHeight + pad;
+
+        // ابعاد فضای داخلی view (به px)
+        const availWpx = (pageWmm - 2*innerPadMm) * pxPerMm;
+        const availHpx = (availHmm) * pxPerMm;
+
+        // اسکیل یکنواخت با safe factor
+        let scale = Math.min(availWpx / naturalW, availHpx / naturalH) * 0.99;
+        scale = Math.max(0.1, Math.min(scale, 3));
+        scale = Math.round(scale*100)/100; // دو رقم اعشار برای رندر تمیز
+
+        board.style.setProperty('--scale', String(scale));
+        board.style.transform = prev;
+      });
+    }
+
+    /* نوشتن داده‌ها و فیت اولیه */
+    function applyDataAndFit(wrap){
+      let matches = [];
+      try { matches = JSON.parse(wrap.getAttribute('data-matches')||'[]') || []; } catch(e){}
+      const declaredSize = wrap.getAttribute('data-size') || '';
+      const { mapRound } = applyRoundShifting(wrap, declaredSize);
+
+      if (matches.length){
+        const byRound = new Map();
+        for (const m of matches) {
+          const r = Number(m.round_no || 1);
+          if (!byRound.has(r)) byRound.set(r, []);
+          byRound.get(r).push(m);
+        }
+        for (const [r, arr] of byRound) arr.sort((a,b)=> (a.slot_a||0) - (b.slot_a||0));
+        for (const [r, arr] of byRound) {
+          const vr = mapRound(r);
+          arr.forEach((m, idx) => {
+            const a = wrap.querySelector(`input.player-input[data-r="${vr}"][data-i="${idx}"][data-pos="a"]`);
+            const b = wrap.querySelector(`input.player-input[data-r="${vr}"][data-i="${idx}"][data-pos="b"]`);
+            const n = wrap.querySelector(`input.bubble[data-r="${vr}"][data-i="${idx}"][data-num]`);
+            if (a) { a.value = m.player_a || (m.is_bye ? "استراحت" : ""); if (a.value==="استراحت") a.classList.add("bye"); }
+            if (b) { b.value = m.player_b || (m.is_bye ? "استراحت" : ""); if (b.value==="استراحت") b.classList.add("bye"); }
+            if (n) n.value = (m.number || "");
+          });
+        }
+      }
+      fitToCard(wrap);
+    }
+    document.querySelectorAll('.bracket-wrap').forEach(applyDataAndFit);
+
+    /* ری‌فیت عمومی */
+    let t;
+    window.addEventListener('resize', ()=>{ clearTimeout(t); t=setTimeout(refitAll,120); });
+
+    /* چاپ */
+    window.printBrackets = function(){
+      try { fitForPrint(); } catch(e){}
+      setTimeout(()=>window.print(), 30);
+    };
+    if ('onbeforeprint' in window) {
+      window.addEventListener('beforeprint', function(){ try { fitForPrint(); } catch(e){} });
+      window.addEventListener('afterprint',  function(){
+        document.querySelectorAll('.bracket-wrap .view').forEach(v=>{
+          v.style.removeProperty('height'); v.style.removeProperty('width');
+        });
+        try { refitAll(); } catch(e){}
+      });
+    } else if (window.matchMedia) {
+      const mq = window.matchMedia('print');
+      if (mq && mq.addEventListener) {
+        mq.addEventListener('change', e => { if (e.matches) fitForPrint(); else refitAll(); });
+      }
+    }
+  })();
+  </script>
+{% endblock %}

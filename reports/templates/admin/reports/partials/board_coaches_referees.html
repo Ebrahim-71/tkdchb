@@ -1,0 +1,199 @@
+{# templates/admin/reports/partials/board_coaches_referees.html #}
+<div id="cr-root">
+  <style>
+    .cs-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:8px}
+    @media(max-width:1100px){.cs-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    .cs-grid label{display:block;margin-bottom:4px;color:#4b5563;font-size:12px}
+    .cs-grid input,.cs-grid select{width:91%;height:36px;padding:6px 10px;border:3px solid #e5e7eb;border-radius:10px;background:#fff}
+
+    .cs-actions{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .cs-actions input[type="search"]{max-width:260px;margin-inline-start:auto}
+
+    .cs-wrap{max-height:62vh;overflow:auto;border:1px solid #e5e7eb;border-radius:14px;margin-top:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    table.cs-table{width:100%;border-collapse:collapse;background:#fff;table-layout:fixed}  <!-- fixed layout -->
+    table.cs-table th, table.cs-table td{border-bottom:1px solid #f1f5f9;padding:10px;text-align:center;white-space:nowrap}
+    table.cs-table thead th{position:sticky;top:0;background:#f8fafc;z-index:1;font-weight:700;color:#374151}
+    table.cs-table tbody tr:nth-child(odd){background:#eef4ff}
+    table.cs-table tbody tr:hover{background:#f7faff}
+      .cs-col-clubs{white-space:normal !important; word-break:break-word; overflow:visible; line-height:1.7}
+
+    .cs-badge{display:inline-block;min-width:40px;text-align:center;padding:4px 10px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;font-size:12px}
+    .cs-num{font-variant-numeric:tabular-nums}
+    .cs-g{background:#fff7ed}.cs-s{background:#f8fafc}.cs-b{background:#fff1f2}
+
+    .cs-meta{display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px;font-size:14px;color:#334155}
+    .cs-meta b{font-weight:700}
+
+    #cr-table thead th.cs-sortable{cursor:pointer;user-select:none;position:relative;}
+    #cr-table thead th .cs-sort-ind{font-size:11px;opacity:.7;margin-inline-start:6px}
+  </style>
+
+  <!-- فیلترها: هیئت، نقش (مربی/داور)، باشگاه + جستجو -->
+  <form method="get" class="cs-grid no-print">
+    <input type="hidden" name="show_board_coaches_referees" value="1"/>
+    <div><label>هیئت</label>{{ cr_form.board }}</div>
+    <div><label>نقش</label>{{ cr_form.role }}</div>
+    <div><label>باشگاه</label>{{ cr_form.club }}</div>
+    <div class="cs-actions">
+      <button class="button" type="submit">نمایش</button>
+      <button class="button" type="button" id="cr-clear">پاک‌سازی</button>
+      <input id="cr-search" type="search" placeholder="جستجو بر اساس نام، کد ملی یا موبایل…">
+    </div>
+  </form>
+
+  {% if board_coaches_referees %}
+
+<div class="cs-meta">
+  <div>
+    مربی/داورِ هیئت: <b>{{ board_display_for_cr|default:board_display|default:"—" }}</b>
+    {% if role_display %} — نقش: <b>{{ role_display }}</b>{% endif %}
+  </div>
+  <div>تعداد افراد: <b id="cr-count">{{ board_coaches_referees.rows|length }}</b></div>
+</div>
+
+
+    <div class="cs-wrap">
+      <table class="cs-table" id="cr-table">
+        <thead>
+          <tr>
+            <th>نام و نام‌خانوادگی</th>
+            <th>نقش</th>
+            <th>کدملی</th>
+            <th>موبایل</th>
+             <th class="cs-col-clubs">باشگاه(ها)</th>
+
+            <th>تعداد بازیکنان</th>
+            <th>تاریخ عضویت</th>
+            <th>طلا</th>
+            <th>نقره</th>
+            <th>برنز</th>
+            <th>رنکینگ کل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in board_coaches_referees.rows %}
+            <tr>
+              <td style="font-weight:600">{{ row.full_name|default:"-" }}</td>
+              <td><span class="cs-badge">{{ row.role_label|default:"-" }}</span></td>
+              <td class="cs-num">{{ row.national_code|default:"-" }}</td>
+              <td class="cs-num">{{ row.phone|default:"-" }}</td>
+             <td class="cs-col-clubs">{{ row.club_name|default:"-" }}</td>
+
+              <td class="cs-num">{{ row.players_count|default:"0" }}</td>
+              <td class="cs-num">{{ row.joined_jalali|default:"-" }}</td>
+              <td class="cs-num cs-g">{{ row.medal_gold|default:"0" }}</td>
+              <td class="cs-num cs-s">{{ row.medal_silver|default:"0" }}</td>
+              <td class="cs-num cs-b">{{ row.medal_bronze|default:"0" }}</td>
+              <td class="cs-num">{{ row.rank_total|default:"0" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="11">موردی یافت نشد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- دکمه چاپ زیر جدول -->
+    <div style="margin-top:12px">
+      <button class="button" type="button" onclick="printCRPartial()">چاپ جدول</button>
+    </div>
+
+    <!-- محتوای خام چاپ -->
+    <div id="cr-print" style="display:none">
+      {% include "admin/reports/_board_coaches_referees_print.html" with rows=board_coaches_referees.rows board_name=board_display role_display=role_display %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  const fa="۰۱۲۳۴۵۶۷۸۹", en="0123456789";
+  const faToEn=s=>String(s||"").replace(/[۰-۹]/g,d=>en[fa.indexOf(d)]);
+  const clean=s=>faToEn(String(s||"").toLowerCase()
+              .replace(/\u200c|‌/g,"")
+              .replace(/[\/.\u2013\u2014\u2212]/g,"-")
+              .replace(/\s+/g," ").trim());
+
+  const tbl=document.getElementById('cr-table');
+  const search=document.getElementById('cr-search');
+  const clear=document.getElementById('cr-clear');
+  const counter=document.getElementById('cr-count');
+
+  if(tbl){
+    const allRows=[...tbl.querySelectorAll('tbody tr')];
+    const emptyRow=allRows.find(r=>r.children.length===1||/یافت نشد/.test(r.textContent));
+    const dataRows=emptyRow?allRows.filter(r=>r!==emptyRow):allRows;
+
+    dataRows.forEach(r=>{r.dataset.cs=clean(r.textContent||r.innerText||""); r.style.display="";});
+    if(emptyRow) emptyRow.style.display=dataRows.length?"none":"";
+
+    function applyFilter(){
+      const q=clean(search.value); let visible=0;
+      if(!q){ dataRows.forEach(r=>{r.style.display=""; visible++;}); }
+      else{
+        dataRows.forEach(r=>{
+          const show=r.dataset.cs.includes(q);
+          r.style.display=show?"":"none";
+          if(show) visible++;
+        });
+      }
+      if(emptyRow) emptyRow.style.display=visible?"none":"";
+      if(counter) counter.textContent=String(visible);
+    }
+    if(search){ search.addEventListener('input',applyFilter); search.addEventListener('keyup',applyFilter); }
+    if(clear){ clear.addEventListener('click',()=>{ search.value=""; applyFilter(); }); }
+    applyFilter();
+
+    // سورت ستونی
+   const COL_TYPES=['text','text','num','num','text','num','date','num','num','num','num'];
+
+    function getCellVal(tr,idx){ const el=tr.children[idx]; return clean(el?(el.innerText||el.textContent||""):""); }
+    function cmpFactory(type,dir){
+      if(type==='num'){ return (a,b)=>((parseFloat(getCellVal(a,a._idx))||0)-(parseFloat(getCellVal(b,b._idx))||0))*dir; }
+      if(type==='date'){ return (a,b)=>{const sa=getCellVal(a,a._idx), sb=getCellVal(b,b._idx); if(!sa&&!sb) return 0; if(!sa) return 1; if(!sb) return -1; return (sa<sb?-1:sa>sb?1:0)*dir;}; }
+      return (a,b)=> getCellVal(a,a._idx).localeCompare(getCellVal(b,b._idx),'fa',{numeric:true,sensitivity:'base'})*dir;
+    }
+    function setIndicator(th,state){
+      const ths=[...th.parentElement.children];
+      ths.forEach(h=>{
+        const i=h.querySelector('.cs-sort-ind')||h.appendChild(Object.assign(document.createElement('span'),{className:'cs-sort-ind'}));
+        if(h===th) return; i.textContent=''; h.dataset.sortDir='';
+      });
+      const ind=th.querySelector('.cs-sort-ind')||th.appendChild(Object.assign(document.createElement('span'),{className:'cs-sort-ind'}));
+      ind.textContent= state==='asc'?'▲':state==='desc'?'▼':'';
+    }
+    [...tbl.querySelectorAll('thead th')].forEach((th,idx)=>{
+      const type=COL_TYPES[idx]||'text';
+      th.classList.add('cs-sortable'); th.dataset.sortDir='';
+      th.addEventListener('click',()=>{
+        const nextDir=th.dataset.sortDir?(th.dataset.sortDir==='asc'?'desc':'asc'):(type==='num'?'desc':'asc');
+        th.dataset.sortDir=nextDir; setIndicator(th,nextDir);
+        const tbody=tbl.querySelector('tbody');
+        const rowsToSort=dataRows.filter(r=>r.style.display!=='none'); rowsToSort.forEach(r=> r._idx=idx);
+        const dirNum=nextDir==='asc'?1:-1; rowsToSort.sort(cmpFactory(type,dirNum));
+        const frag=document.createDocumentFragment();
+        const hidden=dataRows.filter(r=>r.style.display==='none'); hidden.forEach(r=>frag.appendChild(r));
+        rowsToSort.forEach(r=>frag.appendChild(r)); if(emptyRow) frag.appendChild(emptyRow);
+        tbody.appendChild(frag);
+      });
+    });
+  }
+
+  // چاپِ مستقل این پارشیال
+  window.printCRPartial = function(){
+    const src = document.getElementById('cr-print');
+    if(!src) return;
+    const w = window.open('', '_blank');
+    w.document.open();
+    w.document.write(`
+      <!doctype html><html lang="fa" dir="rtl">
+      <head><meta charset="utf-8"><title>چاپ مربی و داور هیئت‌ها</title></head>
+      <body>${src.innerHTML}</body>
+      </html>
+    `);
+    w.document.close();
+    w.focus();
+    setTimeout(()=>{ w.print(); w.close(); }, 200);
+  };
+})();
+</script>

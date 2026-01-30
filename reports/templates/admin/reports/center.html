@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% block title %}مرکز گزارش‌گیری{% endblock %}
+{% block content %}
+<div class="module" style="direction:rtl; padding:12px">
+  <h1>مرکز گزارش‌گیری</h1>
+  <ul>
+    <li><a href="{% url 'reports:users' %}">گزارش کاربران</a></li>
+    <li><a href="{% url 'reports:competitions' %}">گزارش مسابقات</a></li>
+    <li><a href="{% url 'reports:finance' %}">گزارش مالی</a></li>
+  </ul>
+</div>
+{% endblock %}

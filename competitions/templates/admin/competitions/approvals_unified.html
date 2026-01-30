@@ -1,0 +1,69 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block content %}
+  <h1>{{ title }}</h1>
+
+  {% if mode == "list" %}
+    <table class="adminlist" style="width:100%">
+      <thead>
+        <tr>
+          <th>عنوان مسابقه</th>
+          <th>سبک</th>
+          <th>تعداد تأیید</th>
+          <th>آخرین تأیید (شمسی)</th>
+          <th>جزئیات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ r.title }}</td>
+            <td>{{ r.style }}</td>
+            <td>{{ r.count }}</td>
+            <td>{{ r.last_j }}</td>
+            <td><a class="button" href="{{ r.detail_url }}">نمایش</a></td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">موردی یافت نشد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  {% elif mode == "detail" %}
+    <p><a class="button" href="{{ back_url }}">⇦ بازگشت</a></p>
+    <h2>{{ comp_title }} ({{ style }})</h2>
+
+    <table class="adminlist" style="width:100%">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>نام مربی</th>
+          <th>کُد تأیید</th>
+          <th>تاریخ/ساعت تأیید (شمسی)</th>
+          <th>عملیات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ r.coach }}</td>
+            <td>{{ r.code }}</td>
+            <td>{{ r.date_j }}</td>
+            <td>
+              <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="del_id" value="{{ r.id }}">
+                <button type="submit" style="    padding-left: 16px; border-radius: 15px;width: 56px;background-color: #ff9b9b; cursor: pointer;
+
+                  }" class="deletelink" onclick="return confirm('حذف این تایید؟')">حذف</button>
+              </form>
+            </td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="5">موردی ثبت نشده است.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+{% block title %}گزارش مسابقات{% endblock %}
+{% block content %}
+<div style="direction:rtl">
+  <h1>گزارش مسابقات</h1>
+  {% include "admin/reports/_filter_form.html" %}
+  <div class="module">
+    <p>بازه: {{ data.start }} تا {{ data.end }}</p>
+    <h3>تعداد مسابقات: {{ data.total }}</h3>
+
+    <h4>بر اساس وضعیت</h4>
+    <table class="table">
+      <thead><tr><th>وضعیت</th><th>تعداد</th></tr></thead>
+      <tbody>
+      {% for r in data.by_status %}
+        <tr><td>{{ r.status|default:"نامشخص" }}</td><td>{{ r.c }}</td></tr>
+      {% empty %}
+        <tr><td colspan="2">موردی نیست</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    <h4 style="margin-top:16px">بیشترین ثبت‌نام</h4>
+    <table class="table">
+      <thead><tr><th>مسابقه</th><th>تعداد ثبت‌نام</th></tr></thead>
+      <tbody>
+      {% for r in data.top_by_enroll %}
+        <tr><td>{{ r.competition }}</td><td>{{ r.count }}</td></tr>
+      {% empty %}
+        <tr><td colspan="2">موردی نیست</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    <p style="margin-top:10px">
+      <a class="button" href="{% url 'reports:export_csv' 'competitions' %}?start={{ form.start.value }}&end={{ form.end.value }}">دانلود CSV</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

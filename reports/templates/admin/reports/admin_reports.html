@@ -1,0 +1,62 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}گزارش‌ها{% endblock %}
+
+{% block content %}
+  <div class="module" style="direction:rtl">
+    <h2 style="margin-bottom:10px">گزارش‌ها</h2>
+
+    <!-- فقط یک سکشن تاشو -->
+    <details id="coach-students" class="box" {% if coach_open %}open{% endif %} style="border:1px solid #ddd;border-radius:8px;padding:10px;background:#fff">
+      <summary style="cursor:pointer;font-weight:600;font-size:15px">شاگردان مربیان</summary>
+
+      <form method="get" action="#coach-students" style="margin:12px 0">
+        {{ coach_form.media }}  {# برای Jalali widget اگر نیاز بود #}
+        {{ coach_form.as_p }}
+        <button type="submit" name="coach_show" value="1" class="button default">نمایش</button>
+      </form>
+
+      {% if coach_students %}
+        <div class="results">
+          <table class="grp-table" style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr>
+                <th>نام</th>
+                <th>کدملی</th>
+                <th>کمربند</th>
+                <th>تاریخ تولد</th>
+                <th>باشگاه</th>
+                <th>هیئت</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for s in coach_students %}
+              <tr>
+                <td>{{ s.full_name }}</td>
+                <td>{{ s.national_code }}</td>
+                <td>{{ s.belt }}</td>
+                <td>{{ s.birthdate_jalali }}</td>
+                <td>{{ s.club_name }}</td>
+                <td>{{ s.board_name }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% elif coach_open %}
+        <p style="color:#666;margin-top:6px">موردی یافت نشد.</p>
+      {% endif %}
+    </details>
+  </div>
+
+  <script>
+    // اگر با هَش وارد شدیم، همان سکشن باز بماند
+    document.addEventListener('DOMContentLoaded', function () {
+      if (location.hash === '#coach-students') {
+        const el = document.getElementById('coach-students');
+        if (el && el.tagName === 'DETAILS') el.open = true;
+      }
+    });
+  </script>
+{% endblock %}

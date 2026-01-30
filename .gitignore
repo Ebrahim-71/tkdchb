@@ -1,0 +1,43 @@
+
+# env & secrets
+.env
+
+# python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# virtualenv
+.venv/
+venv/
+virtualenv/
+
+# django
+db.sqlite3
+media/
+staticfiles/
+logs/
+stderr.log
+
+# node / frontend (if any)
+node_modules/
+
+# editors
+.idea/
+.vscode/
+.DS_Store
+
+# temp / junk
+tmp/
+*.log
+
+# archives
+*.zip
+# cPanel / local junk
+_venv*/
+True
+div/
+
+.gitignoreamama
+

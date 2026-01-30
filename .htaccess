@@ -1,0 +1,30 @@
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/fltqlsof/api.chbtkd.ir"
+PassengerBaseURI "/"
+PassengerPython "/home/fltqlsof/virtualenv/api.chbtkd.ir/3.9/bin/python"
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# ---- Django static & media via Apache (faster than hitting app) ----
+RewriteEngine On
+
+# Static files (after collectstatic -> /home/fltqlsof/api.chbtkd.ir/staticfiles)
+RewriteCond %{REQUEST_URI} ^/static/
+RewriteRule ^static/(.*)$ /home/fltqlsof/api.chbtkd.ir/staticfiles/$1 [L]
+
+# Media uploads
+RewriteCond %{REQUEST_URI} ^/media/
+RewriteRule ^media/(.*)$ /home/fltqlsof/api.chbtkd.ir/media/$1 [L]
+
+# ---- امنیت: جلوگیری از دسترسی مستقیم به فایل‌های حساس ----
+<FilesMatch "^(manage\.py|passenger_wsgi\.py|\.env|env|requirements\.txt|Pipfile|Pipfile\.lock)$">
+  Require all denied
+</FilesMatch>
+
+# (اختیاری) کش برای فایل‌های استاتیک
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/css "access plus 7 days"
+  ExpiresByType application/javascript "access plus 7 days"
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/svg+xml "access plus 30 days"
+</IfModule>

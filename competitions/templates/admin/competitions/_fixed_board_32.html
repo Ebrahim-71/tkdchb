@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<title>براکت ۳۲تایی – اسکیل‌پذیر</title>
+<style>
+  /* ====== اندازه و اسکیل کلی جدول ====== */
+  :root{
+    --scale: 0.62;      /* 👈 اندازه‌ی کل جدول؛ کم/زیاد کن */
+    --line-w: 2px;
+    --stroke: #444;
+    --font: 14px;
+    --col-gap: 91px;    /* فاصله بین ستون‌ها (قبل از اسکیل) */
+  }
+
+  html,body{margin:0;background:#f8f9fa;font-family:Tahoma,sans-serif}
+  h3{margin:16px 0;text-align:center}
+
+  /* ظرف نمایش */
+  .view{
+    width: 100vw;
+    height: calc(100vh - 64px);
+    overflow: auto;
+    position: relative;
+    padding: 8px 12px;
+    box-sizing: border-box;
+  }
+  .board{
+    transform: scale(var(--scale));
+    transform-origin: top left;
+    width: max-content;
+    display: flex;
+    gap: var(--col-gap);
+    justify-content: flex-start;
+    align-items: flex-start;
+    padding: 16px 24px 48px;
+    margin: 0 auto;
+  }
+
+  /* باکس بازیکن/برنده */
+  .player-input{
+    background:#fff; border:2px solid #444; border-radius:8px;
+    padding:6px 12px; text-align:center; font-size: var(--font);
+    height: 30px; color:#111; width: 180px; max-width: 148px;
+  }
+  .bye{ opacity:.6; font-style:italic }
+
+  /* دایره شماره */
+  .bubble{
+    position:absolute; width:24px; height:24px; border-radius:50%;
+    border:2px solid #444; background:#fff; color:#000;
+    text-align:center; font-size:12px; line-height:22px;
+    transform:translateY(-50%); z-index:1; pointer-events:none;
+  }
+
+  .col{ display:flex; flex-direction:column; position:relative; }
+
+  /* ---------- راند ۱: ۳۲ نفر ---------- */
+  .r1{ --box-h: 46px; --gap-y: 24px; --stub-len: 35px; --stub-ext: 60px; }
+  .r1 .item{ position:relative; height: var(--box-h); }
+  .r1 .stack{ display:flex; flex-direction:column; gap: var(--gap-y); }
+  .r1 .item::before{
+    content:""; position:absolute; top:50%;
+    right: -35px; width: var(--stub-len); height: var(--line-w);
+    background: var(--stroke); transform:translateY(-50%);
+    z-index:2;
+  }
+  .r1 .item:nth-child(2n)::after{
+    content: ""; position: absolute; top: -47px;
+    height: calc(var(--box-h) + var(--gap-y)); right: -94px;
+    width: calc(var(--line-w) + var(--stub-ext));
+    background:
+      linear-gradient(var(--stroke), var(--stroke)) left 0 / var(--line-w) 100% no-repeat,
+      linear-gradient(var(--stroke), var(--stroke)) left 50% / calc(100% - var(--line-w)) var(--line-w) no-repeat;
+    z-index: 2;
+  }
+  .r1 .bubble{ top:-25% }
+
+  /* ---------- راند ۲: ۱۶ نفر ---------- */
+  .r2{ --box-h: 46px; --gap-y: calc(2 * 24px + 46px); --stub-len: 35px; --stub-ext: 72px; }
+  .r2{ margin-top: calc( (46px + 24px) / 2 ); }
+  .r2 .item{ position:relative; height: var(--box-h); }
+  .r2 .stack{ display:flex; flex-direction:column; gap: var(--gap-y); }
+  .r2 .item::before{
+    content:""; position:absolute; top:50%;
+    right:-35px; width: var(--stub-len); height: var(--line-w);
+    background: var(--stroke); transform:translateY(-50%); z-index:2;
+  }
+  .r2 .item:nth-child(2n)::after{
+    content: ""; position: absolute; top: -117px;
+    height: calc(var(--box-h) + var(--gap-y)); right: -95px; width: 62px;
+    background:
+      linear-gradient(var(--stroke), var(--stroke)) left 0 / var(--line-w) 100% no-repeat,
+      linear-gradient(var(--stroke), var(--stroke)) left 50% / calc(100% - var(--line-w)) var(--line-w) no-repeat;
+    z-index: 2;
+  }
+  .r2 .bubble{ top:-97%; right:-18px; }
+
+  /* ---------- راند ۳: ۸ نفر ---------- */
+  .r3{ --box-h: 46px; --gap-y: calc(2 * (46px + 24px) + 24px); --stub-len: 35px; --stub-ext: 84px; }
+  .r3{ margin-top: calc( (46px + 24px) + (46px + 24px)/2 ); }
+  .r3 .item{ position:relative; height: var(--box-h); }
+  .r3 .stack{ display:flex; flex-direction:column; gap: 233px; }
+  .r3 .item::before{
+    content:""; position:absolute; top:50%;
+    right:-35px; width: var(--stub-len); height: var(--line-w);
+    background: var(--stroke); transform:translateY(-50%); z-index:2;
+  }
+  .r3 .item:nth-child(2n)::after{
+    content: ""; position: absolute; top: -258px;
+    height: 282px; right: -94px; width: 59px;
+    background:
+      linear-gradient(var(--stroke), var(--stroke)) left 0 / var(--line-w) 100% no-repeat,
+      linear-gradient(var(--stroke), var(--stroke)) left 50% / calc(100% - var(--line-w)) var(--line-w) no-repeat;
+    z-index: 2;
+  }
+  .r3 .bubble{ top:-250% }
+
+  /* ---------- راند ۴: ۴ نفر ---------- */
+  .r4{ --box-h: 46px; --gap-y: calc(2 * ( (46px + 24px) * 2 + 24px) ); --stub-len:35px; --stub-ext: 96px; }
+  .r4{ margin-top: 243px }
+  .r4 .item{ position:relative; height: var(--box-h); }
+  .r4 .stack{ display:flex; flex-direction:column; gap: 512px; }
+  .r4 .item::before{
+    content:""; position:absolute; top:50%;
+    right:-35px; width: var(--stub-len); height: var(--line-w);
+    background: var(--stroke); transform:translateY(-50%); z-index:2;
+  }
+  .r4 .item:nth-child(2n)::after{
+    content: ""; position: absolute; top: -535px;
+    height: 558px; right: -95px; width: 62px;
+    background:
+      linear-gradient(var(--stroke), var(--stroke)) left 0 / var(--line-w) 100% no-repeat,
+      linear-gradient(var(--stroke), var(--stroke)) left 50% / calc(100% - var(--line-w)) var(--line-w) no-repeat;
+    z-index: 2;
+  }
+  .r4 .bubble{ top:-550%;  }
+
+  /* ---------- راند ۵: فینالِ سمت‌ها ---------- */
+  .r5{ --box-h: 46px; --stub-len:35px; --stub-ext: 110px; }
+  .r5{ margin-top:520px }
+  .r5 .item{ position:relative; height: var(--box-h); }
+  .r5 .stack{ display:flex; flex-direction:column; gap: 1070px; }
+  .r5 .item::before{
+    content:""; position:absolute; top:50%; right:-35px; width: var(--stub-len);
+    height: var(--line-w); background: var(--stroke); transform:translateY(-50%); z-index:2;
+  }
+  .r5 .item:nth-child(2n)::after{
+    content: ""; position: absolute; top: -1094px; height: 1117px;
+    right: -95px; width: 62px;
+    background:
+      linear-gradient(var(--stroke), var(--stroke)) left 0 / var(--line-w) 100% no-repeat,
+      linear-gradient(var(--stroke), var(--stroke)) left 50% / calc(100% - var(--line-w)) var(--line-w) no-repeat;
+    z-index: 2;
+  }
+  .r5 .bubble{ top:-1163%;  }
+
+  /* ---------- راند ۶: قهرمان ---------- */
+  .r6{ margin-top: 1077px; }
+  .r6 .champ{ position:relative; }
+  .champ .player-input{ width:240px; font-weight:bold; }
+
+  @media (max-width: 1200px){
+    :root{ --scale: 0.52; }
+  }
+</style>
+</head>
+<body>
+  <h3>جدول ۳۲ تایی مسابقات تکواندو</h3>
+
+  <div class="view">
+    <div class="board">
+      <!-- Round of 32 (data-r=1, data-i=0..15) -->
+      <div class="col r1">
+        <div class="stack">
+          <!-- 16 Pair: هر جفت = دو آیتم + یک حباب -->
+          <!-- Pair 1 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="0" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="0" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="0" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 2 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="1" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="1" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="1" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 3 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="2" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="2" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="2" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 4 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="3" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="3" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="3" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 5 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="4" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="4" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="4" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 6 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="5" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="5" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="5" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 7 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="6" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="6" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="6" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 8 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="7" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="7" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="7" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 9 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="8" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="8" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="8" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 10 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="9" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="9" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="9" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 11 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="10" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="10" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="10" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 12 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="11" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="11" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="11" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 13 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="12" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="12" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="12" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 14 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="13" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="13" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="13" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 15 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="14" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="14" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="14" data-num disabled style="right:-28px;">
+          </div>
+          <!-- Pair 16 -->
+          <div class="item"><input class="player-input" data-r="1" data-i="15" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="1" data-i="15" data-pos="b" disabled>
+            <input class="bubble" data-r="1" data-i="15" data-num disabled style="right:-28px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Round of 16 (data-r=2, data-i=0..7) -->
+      <div class="col r2">
+        <div class="stack">
+          {% for i in "01234567" %}
+          <div class="item"><input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="b" disabled>
+            <input class="bubble" data-r="2" data-i="{{ forloop.counter0 }}" data-num disabled style="right:-28px;">
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Quarterfinals (data-r=3, data-i=0..3) -->
+      <div class="col r3">
+        <div class="stack">
+          {% for i in "0123" %}
+          <div class="item"><input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="b" disabled>
+            <input class="bubble" data-r="3" data-i="{{ forloop.counter0 }}" data-num disabled style="right:-28px;">
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Semifinals (data-r=4, data-i=0..1) -->
+      <div class="col r4">
+        <div class="stack">
+          {% for i in "01" %}
+          <div class="item"><input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="b" disabled>
+            <input class="bubble" data-r="4" data-i="{{ forloop.counter0 }}" data-num disabled style="right:-28px;">
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Final (data-r=5, data-i=0) -->
+      <div class="col r5">
+        <div class="stack">
+          <div class="item"><input class="player-input" data-r="5" data-i="0" data-pos="a" disabled></div>
+          <div class="item">
+            <input class="player-input" data-r="5" data-i="0" data-pos="b" disabled>
+            <input class="bubble" data-r="5" data-i="0" data-num disabled style="right:-18px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Champion (نمایشی) -->
+      <div class="col r6">
+        <div class="champ"><input class="player-input" value="🏆 قهرمان" disabled></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* آرایه‌ی مسابقات را از کانتکست بده:
+   [{round_no:1, slot_a:1, slot_b:2, player_a:"...", player_b:"...", number:1, is_bye:false}, ...]
+   در جنگو: const matches = {{ p.matches_json|safe }};
+*/
+const matches = (typeof MATCHES_JSON !== 'undefined')
+  ? MATCHES_JSON
+  : (window.matches || {{ p.matches_json|safe }});
+
+/* گروه‌بندی و پرکردن بدون هیچ محاسبه‌ی چیدمان */
+const byRound = new Map();
+for (const m of matches) {
+  const r = Number(m.round_no || 1);
+  if (!byRound.has(r)) byRound.set(r, []);
+  byRound.get(r).push(m);
+}
+for (const [r, arr] of byRound) {
+  // ترتیب نمایش: به slot_a (یا slot_b) مرتب می‌کنیم
+  arr.sort((a,b)=> (a.slot_a||0) - (b.slot_a||0));
+  arr.forEach((m, idx) => {
+    const a = document.querySelector(`input.player-input[data-r="${r}"][data-i="${idx}"][data-pos="a"]`);
+    const b = document.querySelector(`input.player-input[data-r="${r}"][data-i="${idx}"][data-pos="b"]`);
+    const n = document.querySelector(`input.bubble[data-r="${r}"][data-i="${idx}"][data-num]`);
+    if (a) {
+      a.value = m.player_a || (m.is_bye ? "استراحت" : "");
+      if (a.value === "استراحت") a.classList.add("bye");
+    }
+    if (b) {
+      b.value = m.player_b || (m.is_bye ? "استراحت" : "");
+      if (b.value === "استراحت") b.classList.add("bye");
+    }
+    if (n) n.value = m.is_bye ? "" : (m.number || "");
+  });
+}
+</script>
+</body>
+</html>

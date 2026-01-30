@@ -1,0 +1,96 @@
+from django.views.decorators.csrf import csrf_exempt
+from django.http import Http404, HttpResponse, HttpResponseBadRequest
+from django.utils.html import escape
+from urllib.parse import urlparse
+import logging
+
+from azbankgateways.models import Bank as BankModel
+from azbankgateways.bankfactories import BankFactory
+
+logger = logging.getLogger(__name__)
+
+try:
+    from azbankgateways.exceptions import BankGatewayTokenExpired
+except Exception:
+    BankGatewayTokenExpired = Exception
+
+
+ALLOWED_GATEWAY_HOSTS = {
+    "sadad.shaparak.ir",
+    # اگر دامنه دیگری هم دارید اضافه کنید
+}
+
+def _render_auto_submit_form(url, method, params):
+    method = (method or "POST").upper()
+    if method not in ("GET", "POST"):
+        method = "POST"
+
+    inputs = "\n".join(
+        f'<input type="hidden" name="{escape(str(k))}" value="{escape(str(v))}"/>'
+        for k, v in params.items()
+        if v is not None
+    )
+
+    html = f"""<!doctype html>
+<html lang="fa">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>انتقال به درگاه</title>
+</head>
+<body>
+  <p>در حال انتقال به درگاه…</p>
+  <form id="f" action="{escape(url)}" method="{escape(method)}">
+    {inputs}
+  </form>
+  <script>document.getElementById('f').submit();</script>
+</body>
+</html>"""
+    return HttpResponse(html)
+
+
+@csrf_exempt
+def go_to_bank_gateway_override(request, *args, **kwargs):
+    # --- حالت A: مسیر استاندارد ما با tc ---
+    tc = request.GET.get("tc") or request.GET.get("tracking_code")
+    if tc:
+        try:
+            b = BankModel.objects.get(tracking_code=str(tc))
+        except BankModel.DoesNotExist:
+            raise Http404("Bank record not found")
+
+        bank = BankFactory().create(b.bank_type)
+
+        # تزریق رکورد و amount (برای نسخه‌ای که _bank را set نمی‌کند)
+        bank._bank = b
+        try:
+            bank.set_amount(b.amount)
+        except Exception:
+            bank._amount = int(b.amount or 0)
+
+        try:
+            return bank.redirect_gateway()
+        except BankGatewayTokenExpired:
+            logger.warning("BankGatewayTokenExpired for tc=%s; regenerating token via ready()", tc)
+            bank.ready()
+            return bank.redirect_gateway()
+
+    # --- حالت B: مسیر legacy که url/method می‌فرستد (Token/url/method) ---
+    url = request.GET.get("url")
+    method = request.GET.get("method") or request.GET.get("Method")
+    if url and method:
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https") or parsed.netloc not in ALLOWED_GATEWAY_HOSTS:
+            # جلوگیری از open redirect
+            return HttpResponseBadRequest("Invalid gateway url")
+
+        # همه پارامترها بجز url و method را پاس می‌دهیم (Token هم همینجاست)
+        params = request.GET.dict()
+        params.pop("url", None)
+        params.pop("method", None)
+        params.pop("Method", None)
+
+        return _render_auto_submit_form(url, method, params)
+
+    # --- هیچ‌کدام نبود ---
+    raise Http404("tc is required")

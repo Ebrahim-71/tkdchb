@@ -1,0 +1,337 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}شروع قرعه‌کشی{% endblock %}
+
+{% block content %}
+<div dir="rtl" style="text-align:right">
+  <h1 style="margin-bottom:12px;">شروع قرعه‌کشی</h1>
+
+  <!-- فرم کنترل‌ها -->
+  <form id="draw-form" method="get" class="module aligned"
+        style="padding:12px; display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+    <div><label><strong>مسابقه:</strong></label>{{ form.competition }}</div>
+    <div><label><strong>گروه کمربندی:</strong></label>{{ form.belt_group }}</div>
+    <div><label><strong>رده وزنی:</strong></label>{{ form.weight_category }}</div>
+    <div><label><strong>شرکت‌کننده‌ها:</strong></label>{{ form.auto_count }}</div>
+    <div><label><strong>اندازهٔ پیشنهادی جدول:</strong></label>{{ form.auto_size }}</div>
+
+    <div style="grid-column:1/-1; border-top:1px solid #e5e7eb; padding-top:12px;">
+      <label for="id_manual" style="display:flex; align-items:center; gap:8px;">
+        {{ form.manual }} <strong>تنظیمات دستی</strong>
+      </label>
+      <div id="manual-box" class="grid" style="display:none; margin-top:8px; gap:16px; grid-template-columns: 1fr 1fr;">
+        <div><label><strong>اندازهٔ جدول (توان ۲):</strong></label>{{ form.size_override }}</div>
+        <div><label><strong>آستانهٔ هم‌باشگاهی:</strong></label>{{ form.club_threshold }}</div>
+        <div style="grid-column:1/-1;"><label><strong>Seed (اختیاری):</strong></label>{{ form.seed }}</div>
+      </div>
+    </div>
+
+    <div style="grid-column:1/-1; display:flex; gap:10px;">
+      <input type="hidden" name="start" id="startField" value="0" />
+      <button type="button" id="btnStart" class="button button-default">شروع قرعه‌کشی</button>
+
+    </div>
+  </form>
+
+  <!-- صفحه A4: Canvas -->
+  <div id="panel" class="br-panel" style="{% if not show_bracket_now and not has_draw %}display:none{% endif %}">
+    <div class="br-page">
+      <div class="br-stage">
+        <canvas id="br-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- داده‌های مسابقات برای JS -->
+<script id="matches-data" type="application/json">{{ matches_json|default:"[]"|safe }}</script>
+
+<style>
+:root{
+  /* ابعاد A4 */
+  --a4w:210mm; --a4h:297mm;
+
+  /* ظاهر خطوط و متن‌ها (میلی‌متر) */
+  --stroke-mm: .7;
+  --name-font-mm: 2.6;        /* کوچک‌تر برای جا شدن بهتر نام‌ها */
+  --name-font-print-mm: 2.4;
+
+  /* رنگ‌ها */
+  --color-bracket: #1e40af;
+  --color-final:   #111827;
+
+  /* قد نمایشی روی اسکرین (بزرگ‌تر شد تا جدول در صفحه بزرگ‌تر دیده شود) */
+  --screen-height-scale: 0.92;
+}
+
+/* ظرف A4 */
+.br-panel{ background:#f8fafc; border-radius:14px; padding:8px; }
+.br-page{
+  width:100%;
+  height: calc(var(--a4h) * var(--screen-height-scale));
+  margin:0 auto; background:#fff;
+  display:flex; flex-direction:column; overflow:hidden;
+}
+.br-stage{
+  flex:1;
+  padding:3mm 3mm 4mm;       /* پدینگ کمتر = عرض مفید بیشتر */
+  display:flex; justify-content:center; align-items:flex-start;
+}
+#br-canvas{ width:100%; height:100%; display:block; }
+
+/* چاپ */
+@media print{
+  @page{ size:A4 portrait; margin:8mm; } /* حاشیهٔ چاپ کمتر */
+  .breadcrumbs,#draw-form,#header,#content-main > .module:not(.br-panel){ display:none !important; }
+  html,body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .br-panel{ padding:0; background:#fff; }
+  .br-page{ width:100%; height:100%; }
+}
+</style>
+
+<script>
+(function(){
+  /* --------------------- ثابت‌ها --------------------- */
+  const PAGE_W = 210, PAGE_H = 297;
+
+  /* حاشیه‌های داخلی کمتر شد تا جدول عریض‌تر شود */
+  const PADS = { top: 6, bottom: 8, left: 6, right: 6 };
+  const SAFE_MARGIN = 2;            // قبلاً 4 بود
+
+  /* نام‌ها و فاصله‌ها (کمتر شد تا بازوها به لبه نزدیک‌تر شوند) */
+  const NAME_W   = 26;              // قبلاً 36
+  const NAME_GAP = 1.8;             // قبلاً 2.5
+  const NAME_PAD = 0.7;
+  const NAME_SAFE_EXTRA = 0.6;      // قبلاً 2
+
+  const STUB        = 4.0;
+  const COL_GAP_MIN = 18;           // قبلاً 22
+  const FINAL_GAP   = 3;            // قبلاً 6
+
+  // رنگ/خط/فونت
+  const COLOR_BR    = css('--color-bracket','#1e40af');
+  const COLOR_FINAL = css('--color-final','#111827');
+  const STROKE      = parseFloat(css('--stroke-mm','.7'));
+  const NAME_FONT_MM       = parseFloat(css('--name-font-mm','2.6'));
+  const NAME_FONT_PRINT_MM = parseFloat(css('--name-font-print-mm','2.4'));
+
+  const PX_PER_MM = 96/25.4;
+
+  // داده‌ها
+  const drawSize = {{ draw_size|default:"0" }};
+  const matches  = JSON.parse(document.getElementById("matches-data")?.textContent || "[]");
+  const showNow  = {{ show_bracket_now|yesno:"true,false" }};
+
+  // عناصر
+  const panel  = document.getElementById('panel');
+  const canvas = document.getElementById('br-canvas');
+  const ctx    = canvas.getContext('2d');
+
+  /* --------------------- فرم --------------------- */
+  const form     = document.getElementById("draw-form");
+  const comp     = document.getElementById("id_competition");
+  const bg       = document.getElementById("id_belt_group");
+  const wc       = document.getElementById("id_weight_category");
+  const manual   = document.getElementById("id_manual");
+  const manualBox= document.getElementById("manual-box");
+  const startFld = document.getElementById("startField");
+  const btnStart = document.getElementById("btnStart");
+  const btnShow  = document.getElementById("btnShow");
+
+  const resubmit = ()=> form.submit();
+  if (comp) comp.addEventListener("change", ()=>{ if (bg) bg.selectedIndex=0; if (wc) wc.selectedIndex=0; resubmit(); });
+  if (bg)   bg.addEventListener("change", resubmit);
+  if (wc)   wc.addEventListener("change", resubmit);
+  if (manual){ const t=()=>manualBox.style.display=manual.checked?"grid":"none"; manual.addEventListener("change", t); t(); }
+
+  btnStart.addEventListener("click", ()=>{
+    if (!comp?.value || !bg?.value || !wc?.value){ alert("مسابقه، گروه و رده وزنی را انتخاب کنید."); return; }
+    if (!confirm("آیا از شروع قرعه‌کشی اطمینان دارید؟")) return;
+    startFld.value="1"; form.submit();
+  });
+  btnShow?.addEventListener("click", ()=>{ panel.style.display=""; draw(); });
+
+  if ((showNow || matches.length) && drawSize){ panel.style.display=""; draw(); }
+  window.addEventListener('resize', ()=> requestAnimationFrame(draw), {passive:true});
+
+  /* --------------------- ابزار --------------------- */
+  function css(name, fallback){ const v=getComputedStyle(document.documentElement).getPropertyValue(name); return v && v.trim()? v.trim(): fallback; }
+
+  function setCanvasSize(){
+    const cssW = canvas.clientWidth, cssH = canvas.clientHeight;
+    const ratio = window.devicePixelRatio || 1;
+    const needW = Math.max(1, Math.floor(cssW * ratio));
+    const needH = Math.max(1, Math.floor(cssH * ratio));
+    if (canvas.width !== needW) canvas.width = needW;
+    if (canvas.height !== needH) canvas.height = needH;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return { cssW, cssH, ratio };
+  }
+
+  function r1Pairs(){
+    const byR={}; matches.forEach(m=>{ (byR[m.round_no] ||= []).push(m); });
+    const r1=(byR[1]||[]).sort((a,b)=>a.slot_a-b.slot_a);
+    const REST='استراحت';
+    return r1.map(m=>[
+      m.player_a || (m.is_bye?REST:'—'),
+      m.player_b || (m.is_bye?REST:'—')
+    ]);
+  }
+
+  /* --------------------- رسم --------------------- */
+  function draw(){
+    const { cssW, cssH } = setCanvasSize();
+    if (!drawSize) return;
+
+    // مقیاس‌دهی: هر واحد در محاسبات = میلی‌متر
+    const scale = Math.min(cssW / (PAGE_W*PX_PER_MM), cssH / (PAGE_H*PX_PER_MM));
+    const tx = (cssW - PAGE_W*PX_PER_MM*scale)/2;
+    const ty = (cssH - PAGE_H*PX_PER_MM*scale)/2;
+
+    ctx.save();
+    ctx.translate(tx, ty);
+    ctx.scale(scale * PX_PER_MM, scale * PX_PER_MM); // 1mm → px
+
+    // ظاهر عمومی
+    ctx.lineWidth   = STROKE;
+    ctx.strokeStyle = COLOR_BR;
+    ctx.fillStyle   = '#0f172a';
+    ctx.textBaseline = 'middle';
+    ctx.direction    = 'rtl';
+
+    const rounds = Math.max(1, Math.log2(drawSize));
+    const pairs  = r1Pairs();
+    const rowsPerSide = Math.max(1, Math.floor(pairs.length/2));
+    const leftRows  = pairs.slice(0, rowsPerSide);
+    const rightRows = pairs.slice(rowsPerSide);
+
+    // عمودی
+    const usableH = PAGE_H - PADS.top - PADS.bottom - SAFE_MARGIN*2;
+    const step = usableH / rowsPerSide;
+    const nameOffset = Math.min(step*0.32, 6);
+    const centers = Array.from({length:rowsPerSide},(_,i)=> PADS.top + SAFE_MARGIN + step*(i+0.5));
+
+    // افقی
+    const centerX    = PAGE_W/2;
+    const leftMaxX   = centerX - FINAL_GAP;
+    const rightMinX  = centerX + FINAL_GAP;
+
+    // ستون اول با درنظرگرفتن باکس نام‌ها (کوچک‌تر شده‌اند)
+    const NAME_SAFE = NAME_W + NAME_GAP + NAME_SAFE_EXTRA;
+    const leftStartX  = PADS.left  + SAFE_MARGIN + NAME_SAFE;
+    const rightStartX = PAGE_W - PADS.right - SAFE_MARGIN - NAME_SAFE;
+
+    const spanLeft  = leftMaxX - leftStartX;
+    const spanRight = rightStartX - rightMinX;
+    const colGapL = Math.max(COL_GAP_MIN, (spanLeft  - STUB)/(rounds-1 || 1));
+    const colGapR = Math.max(COL_GAP_MIN, (spanRight - STUB)/(rounds-1 || 1));
+
+    const anchorL = r => leftStartX  + (r-1)*colGapL; // 1..rounds
+    const anchorR = r => rightStartX - (r-1)*colGapR; // 1..rounds
+
+    const yMap = centers => {
+      const m={1: centers.slice()};
+      for(let r=2;r<=rounds;r++){
+        const p=m[r-1], c=[];
+        for(let i=0;i<p.length/2;i++) c.push( (p[i*2]+p[i*2+1])/2 );
+        m[r]=c;
+      }
+      return m;
+    };
+    const yL = yMap(centers);
+    const yR = yMap(centers);
+
+    const H = (x1,y,x2)=>{ ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y); ctx.stroke(); };
+    const V = (x,y1,y2)=>{ ctx.beginPath(); ctx.moveTo(x,y1); ctx.lineTo(x,y2); ctx.stroke(); };
+
+    function drawName(txt, side, xInner, y){
+      const maxWpx = (NAME_W - 2*NAME_PAD) * PX_PER_MM * scale;
+      let fontPx   = NAME_FONT_MM * PX_PER_MM;
+      const minPx  = (NAME_FONT_PRINT_MM - 0.6) * PX_PER_MM;
+
+      ctx.textAlign = (side==='L' ? 'right' : 'left');
+      let label = (txt && (''+txt).trim()) || '—';
+
+      ctx.font = `${fontPx}px Tahoma, Vazirmatn, Arial`;
+      while (ctx.measureText(label).width > maxWpx && fontPx > minPx){
+        fontPx -= 0.6;
+        ctx.font = `${fontPx}px Tahoma, Vazirmatn, Arial`;
+      }
+      if (ctx.measureText(label).width > maxWpx){
+        while (label.length > 2 && ctx.measureText(label+'…').width > maxWpx){
+          label = label.slice(0, -1);
+        }
+        label += '…';
+      }
+
+      const x = (side==='L') ? (xInner - NAME_PAD) : (xInner + NAME_PAD);
+      ctx.fillText(label, x, y);
+    }
+
+    /* چپ: راند ۱ + نام‌ها */
+    for(let i=0;i<rowsPerSide;i++){
+      const base=yL[1][i];
+      const yUp=base-nameOffset, yDn=base+nameOffset;
+      const xInner = anchorL(1) - NAME_GAP;
+      const xStub  = anchorL(1) + STUB;
+
+      H(xInner, yUp, anchorL(1));
+      H(xInner, yDn, anchorL(1));
+      V(anchorL(1), yUp, yDn);
+      H(xStub, base, anchorL(2));
+
+      drawName(leftRows[i]?.[0], 'L', xInner, yUp);
+      drawName(leftRows[i]?.[1], 'L', xInner, yDn);
+    }
+
+    /* چپ: راندهای بعدی */
+    for(let r=2;r<=rounds;r++){
+      for(let i=0;i<yL[r].length;i++){
+        const parent=yL[r][i], c1=yL[r-1][i*2], c2=yL[r-1][i*2+1];
+        const leftX=anchorL(r);
+        const rightX=(r<rounds)?anchorL(r+1):leftMaxX;
+        const joinX=leftX + (colGapL/2);
+        H(leftX,c1,joinX); H(leftX,c2,joinX); V(joinX,Math.min(c1,c2),Math.max(c1,c2)); H(joinX,parent,rightX);
+      }
+    }
+
+    /* راست: راند ১ + نام‌ها */
+    for(let i=0;i<rowsPerSide;i++){
+      const base=yR[1][i];
+      const yUp=base-nameOffset, yDn=base+nameOffset;
+      const xInner = anchorR(1) + NAME_GAP;
+      const xStub  = anchorR(1) - STUB;
+
+      H(anchorR(1), yUp, xInner);
+      H(anchorR(1), yDn, xInner);
+      V(anchorR(1), yUp, yDn);
+      H(anchorR(2), base, xStub);
+
+      drawName(rightRows[i]?.[0], 'R', xInner, yUp);
+      drawName(rightRows[i]?.[1], 'R', xInner, yDn);
+    }
+
+    /* راست: راندهای بعدی */
+    for(let r=2;r<=rounds;r++){
+      for(let i=0;i<yR[r].length;i++){
+        const parent=yR[r][i], c1=yR[r-1][i*2], c2=yR[r-1][i*2+1];
+        const rightX=anchorR(r);
+        const leftX =(r<rounds)?anchorR(r+1):rightMinX;
+        const joinX=rightX - (colGapR/2);
+        H(joinX,c1,rightX); H(joinX,c2,rightX); V(joinX,Math.min(c1,c2),Math.max(c1,c2)); H(leftX,parent,joinX);
+      }
+    }
+
+    /* فینال: اتصال دو نیمه */
+    const finalY = (yL[rounds][0] + yR[rounds][0]) / 2;
+    ctx.strokeStyle = COLOR_FINAL;
+    H(PAGE_W/2 - FINAL_GAP, finalY, PAGE_W/2 + FINAL_GAP);
+    ctx.strokeStyle = COLOR_BR;
+
+    ctx.restore();
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,8 @@
+<li>
+  <a href="/admin/app/pendingcoach/">
+    تایید مربی
+    {% if pending_coach_count > 0 %}
+      <span class="badge">{{ pending_coach_count }}</span>
+    {% endif %}
+  </a>
+</li>

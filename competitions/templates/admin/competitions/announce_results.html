@@ -1,0 +1,95 @@
+{% extends "admin/base_site.html" %}
+{% block title %}{% endblock %}
+{% block content %}
+
+
+<form method="get" style="direction: rtl;">
+  <h1> اعلام نتایج مسابقات</h1>
+  <label>انتخاب مسابقه:</label>
+  <select name="competition" onchange="this.form.submit()" style="min-width:320px;">
+    <option value="">— انتخاب کنید —</option>
+    {% for c in competitions %}
+      <option value="{{ c.id }}" {% if c.id == selected_competition_id %}selected{% endif %}>{{ c.title }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if competition %}
+  {% if saved %}
+    <div style="margin:12px 0; padding:8px 12px; background:#e6ffed; border:1px solid #b7eb8f;">
+      نتایج ذخیره شد و امتیازها اعمال گردید.
+    </div>
+  {% endif %}
+
+  <form method="post" id="results-form" style="display: flex;flex-wrap: wrap;justify-content: space-around;flex-direction: row-reverse;">
+    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+    <input type="hidden" name="competition" value="{{ competition.id }}">
+    <input type="hidden" name="confirm" id="confirm-input" value="no">
+
+    {% for row in weights %}
+      <fieldset style="border:1px solid #ddd; padding:12px; margin-bottom:12px;">
+        <legend style="padding:0 6px; font-weight:600;">وزن: {{ row.weight }}</legend>
+
+        <div style="display:grid; grid-template-columns: 160px 1fr; gap:8px 12px; align-items:center;">
+          <label>مقام اول</label>
+          <select name="w_{{ row.weight.id }}_gold">
+            <option value="">— انتخاب کنید —</option>
+            {% for e in row.enrollments %}
+              <option value="{{ e.id }}" {% if row.prefill.gold == e.id %}selected{% endif %}>{{ e.label }}</option>
+            {% endfor %}
+          </select>
+
+          <label>مقام دوم</label>
+          <select name="w_{{ row.weight.id }}_silver">
+            <option value="">— انتخاب کنید —</option>
+            {% for e in row.enrollments %}
+              <option value="{{ e.id }}" {% if row.prefill.silver == e.id %}selected{% endif %}>{{ e.label }}</option>
+            {% endfor %}
+          </select>
+
+          <label>سوم مشترک ۱</label>
+          <select name="w_{{ row.weight.id }}_bronze1">
+            <option value="">— انتخاب کنید —</option>
+            {% for e in row.enrollments %}
+              <option value="{{ e.id }}" {% if row.prefill.bronze1 == e.id %}selected{% endif %}>{{ e.label }}</option>
+            {% endfor %}
+          </select>
+
+          <label>سوم مشترک ۲</label>
+          <select name="w_{{ row.weight.id }}_bronze2">
+            <option value="">— انتخاب کنید —</option>
+            {% for e in row.enrollments %}
+              <option value="{{ e.id }}" {% if row.prefill.bronze2 == e.id %}selected{% endif %}>{{ e.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </fieldset>
+    {% endfor %}
+
+
+  </form>
+ <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button type="button" class="button" onclick="openConfirm()">ثبت نتایج</button>
+    </div>
+
+  <div id="confirm-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.4);">
+    <div style="width:420px; margin:10% auto; background:#fff; padding:16px; border-radius:6px;">
+      <h3 style="margin-top:0;">تأیید ثبت نتایج</h3>
+      <p>از ثبت نتایج و اعمال امتیازها اطمینان دارید؟</p>
+      <div style="display:flex; gap:8px; justify-content:flex-end;">
+        <button type="button" class="button" onclick="closeConfirm()">انصراف</button>
+        <button type="button" class="default" onclick="submitConfirmed()">بله، ثبت کن</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openConfirm(){ document.getElementById('confirm-modal').style.display='block'; }
+    function closeConfirm(){ document.getElementById('confirm-modal').style.display='none'; }
+    function submitConfirmed(){
+      document.getElementById('confirm-input').value = 'yes';
+      document.getElementById('results-form').submit();
+    }
+  </script>
+{% endif %}
+{% endblock %}

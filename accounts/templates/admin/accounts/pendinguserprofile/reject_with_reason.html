@@ -1,0 +1,53 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+  <h1>رد درخواست ثبت‌نام</h1>
+
+  {% if objects %}
+    <p>
+      شما در حال رد کردن <strong>{{ objects|length }}</strong> درخواست هستید:
+    </p>
+    <ul>
+      {% for obj in objects %}
+        <li>{{ obj }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>
+      شما در حال رد کردن درخواست زیر هستید:
+      <strong>{{ object }}</strong>
+    </p>
+  {% endif %}
+
+  <form method="post" style="max-width: 700px;">
+    {% csrf_token %}
+
+    {# برای اکشن گروهی باید آیتم‌های انتخاب‌شده و نام اکشن را نگه‌داریم #}
+    {% if action %}
+      <input type="hidden" name="action" value="{{ action }}">
+      {% for obj in objects %}
+        <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+      {% endfor %}
+      <input type="hidden" name="confirm_reject" value="1">
+    {% endif %}
+
+    <div class="form-row">
+      <label for="id_reject_reason"><strong>علت رد درخواست:</strong></label><br>
+      <textarea id="id_reject_reason"
+                name="reject_reason"
+                rows="4"
+                style="width:100%;"></textarea>
+      <p class="help">
+        لطفا دلایل رد کاربر را ذکر کنید. 
+      </p>
+    </div>
+    <br>
+    <input type="submit"
+           name="confirm_reject"
+           value="رد و ارسال پیامک"
+           class="deletelink default" />
+    &nbsp;
+    <a href="{{ changelist_url }}" class="button cancel-link">انصراف</a>
+  </form>
+{% endblock %}

@@ -1,0 +1,61 @@
+{# templates/admin/reports/_board_students_print.html #}
+<style>
+  .cs-print{ font-family:Tahoma, Vazirmatn, Arial, sans-serif; margin:0; }
+  .cs-print h2{ margin:0 0 6px; font-weight:700; font-size:16px; }
+  .cs-print .sub{ margin:0 0 8px; color:#475569; font-size:12px; }
+  .cs-print .num{ font-variant-numeric:tabular-nums; direction:ltr; }
+
+  .cs-print table{ width:100%; border-collapse:collapse; table-layout:fixed; font-size:11px; }
+  .cs-print th,.cs-print td{ border:1px solid #dfe3e8; padding:4px 6px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cs-print thead th{ background:#f3f4f6; }
+
+  .cs-print thead{ display:table-header-group; }
+  .cs-print tfoot{ display:table-footer-group; }
+  .cs-print tr{ page-break-inside:avoid; }
+
+  /* هر ۲۵ ردیف یک صفحه */
+  .cs-print tbody tr:nth-child(30n):not(:last-child){ page-break-after:always; }
+</style>
+
+<div class="cs-print">
+  <h2>شاگردان هیئت: {{ board_name|default:"-" }}</h2>
+  <div class="sub">تعداد شاگردها: <span class="num">{{ rows|length }}</span></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>نام و نام‌خانوادگی</th>
+        <th>کمربند</th>
+        <th>کدملی</th>
+        <th>نام مربی</th>
+        <th>تاریخ تولد</th>
+        <th>مسابقات</th>
+        <th>طلا</th>
+        <th>نقره</th>
+        <th>برنز</th>
+        <th>رنک.مس</th>
+        <th>رنک.کل</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ row.full_name|default:"-" }}</td>
+          <td>{{ row.belt|default:"-" }}</td>
+          <td class="num">{{ row.national_code|default:"-" }}</td>
+          <td>{{ row.coach_name|default:"-" }}</td>
+          <td class="num">{{ row.birth_date|default:"-" }}</td>
+          <td class="num">{{ row.competitions|default:"0" }}</td>
+          <td class="num">{{ row.medal_gold|default:"0" }}</td>
+          <td class="num">{{ row.medal_silver|default:"0" }}</td>
+          <td class="num">{{ row.medal_bronze|default:"0" }}</td>
+          <td class="num">{{ row.rank_comp|default:"0" }}</td>
+          <td class="num">{{ row.rank_total|default:"0" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="11">موردی یافت نشد.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</div>

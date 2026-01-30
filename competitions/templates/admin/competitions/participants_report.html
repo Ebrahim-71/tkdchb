@@ -1,0 +1,239 @@
+{% extends "admin/base_site.html" %}
+{% load static jalali_filters %}
+
+{% block title %}لیست شرکت‌کنندگان مسابقات{% endblock %}
+
+{% block content %}
+<div dir="rtl" class="tkd-report" style="text-align:right">
+  <h1 class="tkd-title">لیست شرکت‌کنندگان مسابقات</h1>
+
+  <!-- فرم انتخاب مسابقه (در چاپ مخفی می‌شود) -->
+  <form method="get" class="module tkd-form">
+    <fieldset class="tkd-fieldset">
+      {{ form.competition.label_tag }}
+      {{ form.competition }}
+      <button type="submit" class="button">نمایش</button>
+    </fieldset>
+  </form>
+
+  {% if selected_competition %}
+
+    <div class="module aligned tkd-box">
+      <div class="tkd-banner">مسابقه: {{ selected_competition.title }}</div>
+      <p class="tkd-hint">تفکیک بر اساس گروه کمربندی و ردهٔ وزنی</p>
+
+      {# فرم POST برای حذف شرکت‌کنندگان انتخاب‌شده #}
+      <form method="post" id="participants-form">
+        {% csrf_token %}
+        <input type="hidden" name="competition" value="{{ selected_competition.id }}">
+        <input type="hidden" name="delete_selected" value="1">
+
+        {% if groups %}
+          {% for belt_label, weight_rows in groups %}
+            <div class="module tkd-section">
+              <div class="tkd-section__head">گروه کمربندی: {{ belt_label }}</div>
+
+              {% for weight_label, enrolls in weight_rows %}
+                <div class="tkd-weight-block">
+
+                  {# --- هدر مخصوص چاپ برای همین رده --- #}
+                  <header class="print-only print-header">
+                    <img class="print-logo" src="{% static 'img/logo512.png' %}" alt="logo">
+                    <div class="print-meta">
+                      <div class="print-title">{{ selected_competition.title }}</div>
+                      <div class="print-sub">
+                        گروه کمربندی: {{ belt_label }} &nbsp;|&nbsp; رده وزنی: {{ weight_label }}
+                      </div>
+                    </div>
+                  </header>
+
+                  <h3 class="tkd-weight-title">رده وزنی: {{ weight_label }}</h3>
+
+                  <div class="results">
+                    <table class="tkd-table">
+                      <thead>
+                        <tr>
+                          <th class="tkd-select-col screen-only">انتخاب</th>
+                          <th class="align-right">نام و نام خانوادگی</th>
+                          <th>تاریخ تولد</th>
+                          <th>کد ملی</th>
+                          <th>کمربند</th>
+                          <th>وزن اعلامی</th>
+                          <th>شماره بیمه</th>
+                          <th>تاریخ صدور</th>
+                          <th class="align-right">نام مربی</th>
+                          <th class="align-right">نام باشگاه</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for e in enrolls %}
+                          <tr>
+                            <td class="tkd-select-col screen-only">
+                              <input type="checkbox"
+                                     name="selected_enrollments"
+                                     value="{{ e.id }}"
+                                     class="tkd-select-checkbox">
+                            </td>
+                            <td class="align-right">{{ e.player.first_name }} {{ e.player.last_name }}</td>
+                            <td class="fa-num">{{ e.player.birth_date|to_jalali|to_fa }}</td>
+                            <td class="fa-num">{{ e.player.national_code|to_fa }}</td>
+                            <td>{{ e.player.belt_grade|default:"—" }}</td>
+                            <td class="fa-num">{{ e.declared_weight|default:"—"|to_fa }}</td>
+                            <td class="fa-num">{{ e.insurance_number|default:"—"|to_fa }}</td>
+                            <td class="fa-num">{{ e.insurance_issue_date|to_jalali|to_fa }}</td>
+                            <td class="align-right">{{ e.coach_name|default:"—" }}</td>
+                            <td class="align-right">{{ e.club_name|default:"—" }}</td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+
+          <div class="tkd-actions screen-only">
+            <button type="button" class="button tkd-delete-btn" id="delete-selected-btn">
+              🗑 حذف موارد انتخاب‌شده
+            </button>
+            <button type="button" class="button tkd-print-btn" onclick="window.print()">
+              🖨 چاپ لیست
+            </button>
+          </div>
+
+        {% else %}
+          <p>برای این مسابقه شرکت‌کننده‌ای یافت نشد.</p>
+        {% endif %}
+      </form>
+    </div>
+  {% endif %}
+</div>
+
+{# مودال تأیید حذف #}
+<div id="confirm-modal"
+     class="screen-only"
+     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
+            align-items:center; justify-content:center; z-index:1000;">
+  <div style="background:#fff; padding:20px 25px; border-radius:6px;
+              min-width:280px; max-width:400px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+    <h2 style="margin-top:0; font-size:18px;">تأیید حذف</h2>
+    <p style="margin:10px 0 18px;">
+      آیا از حذف شرکت‌کنندگان انتخاب‌شده مطمئن هستید؟<br>
+      این عمل قابل بازگشت نیست.
+    </p>
+    <div style="margin-top: 10px; display:flex; gap:10px; justify-content:center;">
+      <button type="button" class="button" id="confirm-delete-btn"
+              style="background:#ba2121; border-color:#ba2121; color:#fff;">
+        بله، حذف شود
+      </button>
+      <button type="button" class="button" id="cancel-delete-btn">
+        انصراف
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const deleteBtn = document.getElementById("delete-selected-btn");
+    const modal     = document.getElementById("confirm-modal");
+    const confirm   = document.getElementById("confirm-delete-btn");
+    const cancel    = document.getElementById("cancel-delete-btn");
+    const form      = document.getElementById("participants-form");
+
+    if (!deleteBtn || !modal || !confirm || !cancel || !form) {
+      return;
+    }
+
+    deleteBtn.addEventListener("click", function() {
+      const checked = document.querySelectorAll('input[name="selected_enrollments"]:checked');
+      if (!checked.length) {
+        alert("هیچ شرکت‌کننده‌ای انتخاب نشده است.");
+        return;
+      }
+      modal.style.display = "flex";
+    });
+
+    cancel.addEventListener("click", function() {
+      modal.style.display = "none";
+    });
+
+    confirm.addEventListener("click", function() {
+      modal.style.display = "none";
+      form.submit();
+    });
+  })();
+</script>
+
+<style>
+  /* ——— ظاهر صفحه (مثل قبل) ——— */
+  .tkd-title{margin:0 0 12px;}
+  .tkd-form{padding:12px; margin-bottom:16px;}
+  .tkd-fieldset{border:none; margin:0; padding:0; display:flex; gap:8px; align-items:center;}
+  .tkd-box{padding:12px;}
+  .tkd-banner{background:#6ba5c0; color:#fff; padding:10px 14px; border-radius:6px; margin-bottom:10px; font-weight:700;}
+  .tkd-hint{color:#666;margin:0 0 8px;}
+  .tkd-section{margin:16px 0; border:1px solid #cbd5e1; border-radius:10px; overflow:hidden;}
+  .tkd-section__head{background:#e2ecf4; padding:10px 12px; font-weight:700; color:#0f3652;}
+  .tkd-weight-block{padding:10px 12px; border-top:1px solid #e5e7eb;}
+  .tkd-weight-title{margin:0 0 8px; font-size:14px; color:#0f3652;}
+
+  .tkd-table{width:100%; border-collapse:separate; border-spacing:0; direction:rtl;}
+  .tkd-table thead th{
+    background:#e9f1f7; padding:10px 12px; text-align:center; font-weight:700; border:1px solid #cbd5e1;
+  }
+  .tkd-table tbody td{
+    padding:10px 12px; text-align:center; vertical-align:middle; border:1px solid #e5e7eb; background:#fff;
+  }
+  .tkd-table tbody tr:nth-child(odd) td{ background:#fafafa; }
+
+  .tkd-select-col{ width:40px; text-align:center; }
+
+  .align-right{ text-align:right !important; }
+  .fa-num{ direction: rtl; unicode-bidi: plaintext; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .tkd-actions{ margin-top:16px; text-align:center; display:flex; gap:8px; justify-content:center; }
+  .tkd-print-btn{ background:#16a34a; color:#fff; border:none; }
+  .tkd-delete-btn{ background:#ba2121; color:#fff; border:none; }
+
+  /* ——— نمایش/چاپ ——— */
+  .print-only{ display:none; }
+  .screen-only{ display:block; }
+
+  @media print {
+    /* حاشیه کم صفحه چاپ */
+    @page { margin:4mm; }
+
+    /* حذف تمام عناصر اضافی admin و متن‌های صفحه */
+    header, nav, #header, #branding, .breadcrumbs, #content > h1,
+    .object-tools, .paginator, footer, .tkd-form,
+    .screen-only, .tkd-title, .tkd-banner, .tkd-hint,
+    .tkd-section__head, .tkd-weight-title {
+      display: none !important;
+    }
+
+    html, body { margin:0 !important; padding:0 !important; background:#fff !important; }
+
+    /* هدر چاپ داخل هر رده وزنی */
+    .print-only{ display:flex !important; align-items:center; gap:10px; margin:2mm 0 3mm 0; }
+    .print-logo{ width:44px; height:44px; object-fit:contain; }
+    .print-meta{ display:flex; flex-direction:column; gap:2px; }
+    .print-title{ font-weight:800; font-size:15px; }
+    .print-sub{ font-size:13px; }
+
+    /* جدول چسبیده به هدر */
+    .tkd-report, .tkd-box, .tkd-section, .tkd-weight-block { margin:0 !important; padding:0 !important; border:none !important; }
+    .tkd-table{ margin:0 !important; width:100% !important; }
+
+    /* رنگ هدر جدول در چاپ حفظ شود */
+    .tkd-table thead th{
+      background:#e9f1f7 !important;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+
+    /* هر رده وزنی در صورت نیاز صفحه‌ی جدید */
+    .tkd-weight-block{ page-break-inside: avoid; }
+  }
+</style>
+{% endblock %}

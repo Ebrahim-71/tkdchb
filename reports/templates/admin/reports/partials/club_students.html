@@ -1,0 +1,180 @@
+{# templates/admin/reports/partials/club_students.html #}
+<div id="cl-root">
+  <style>
+    /* UI عادی */
+    .cs-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:8px}
+    @media(max-width:1100px){.cs-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+    .cs-grid label{display:block;margin-bottom:4px;color:#4b5563;font-size:12px}
+    .cs-grid input,.cs-grid select{width:91%;height:36px;padding:6px 10px;border:3px solid #e5e7eb;border-radius:10px;background:#fff}
+
+    .cs-actions{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .cs-actions input[type="search"]{max-width:260px;margin-inline-start:auto}
+
+    .cs-wrap{max-height:62vh;overflow:auto;border:1px solid #e5e7eb;border-radius:14px;margin-top:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+    table.cs-table{width:100%;border-collapse:collapse;background:#fff}
+    table.cs-table th, table.cs-table td{border-bottom:1px solid #f1f5f9;padding:10px;text-align:center;white-space:nowrap}
+    table.cs-table thead th{position:sticky;top:0;background:#f8fafc;z-index:1;font-weight:700;color:#374151}
+    table.cs-table tbody tr:nth-child(odd){background:#eef4ff}
+    table.cs-table tbody tr:hover{background:#f7faff}
+
+    .cs-badge{display:inline-block;min-width:40px;text-align:center;padding:4px 10px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;font-size:12px}
+    .cs-num{font-variant-numeric:tabular-nums}
+    .cs-g{background:#fff7ed}.cs-s{background:#f8fafc}.cs-b{background:#fff1f2}
+
+    .cs-meta{display:flex;justify-content:space-between;align-items:center;margin:10px 0 6px;font-size:14px;color:#334155}
+    .cs-meta b{font-weight:700}
+
+    /* سورت هدر */
+    #cl-table thead th.cs-sortable{cursor:pointer;user-select:none;position:relative;}
+    #cl-table thead th .cs-sort-ind{font-size:11px;opacity:.7;margin-inline-start:6px}
+  </style>
+
+  <!-- فیلترها -->
+  <form method="get" class="cs-grid no-print">
+    <input type="hidden" name="show_club_students" value="1"/>
+    <div><label>باشگاه</label>{{ club_form.club }}</div>
+    <div><label>کمربند</label>{{ club_form.belt }}</div>
+    <div><label>مربی</label>{{ club_form.coach }}</div>
+
+    <div class="cs-actions">
+      <button class="button" type="submit">نمایش</button>
+      <button class="button" type="button" id="cl-clear">پاک‌سازی</button>
+      <input id="cl-search" type="search" placeholder="جستجو بر اساس نام و کد ملی…">
+    </div>
+  </form>
+
+  {% if club_students %}
+    <div class="cs-meta">
+      <div>شاگردانِ باشگاه: <b>{{ club_display|default:"—" }}</b></div>
+      <div>تعداد شاگردها: <b id="cl-count">{{ club_students.rows|length }}</b></div>
+    </div>
+
+    <div class="cs-wrap">
+      <table class="cs-table" id="cl-table">
+        <thead>
+          <tr>
+            <th>نام و نام‌خانوادگی</th>
+            <th>کمربند</th>
+            <th>کدملی</th>
+            <th>نام مربی</th>
+            <th>تاریخ تولد</th>
+            <th>تعداد مسابقات</th>
+            <th>طلا</th><th>نقره</th><th>برنز</th>
+            <th>رنکینگ مسابقات</th><th>رنکینگ کل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in club_students.rows %}
+            <tr>
+              <td style="font-weight:600">{{ row.full_name|default:"-" }}</td>
+              <td><span class="cs-badge">{{ row.belt|default:"-" }}</span></td>
+              <td class="cs-num">{{ row.national_code|default:"-" }}</td>
+              <td>{{ row.coach_name|default:"-" }}</td>
+              <td class="cs-num">{{ row.birth_date|default:"-" }}</td>
+              <td class="cs-num">{{ row.competitions|default:"0" }}</td>
+              <td class="cs-num cs-g">{{ row.medal_gold|default:"0" }}</td>
+              <td class="cs-num cs-s">{{ row.medal_silver|default:"0" }}</td>
+              <td class="cs-num cs-b">{{ row.medal_bronze|default:"0" }}</td>
+              <td class="cs-num">{{ row.rank_comp|default:"0" }}</td>
+              <td class="cs-num">{{ row.rank_total|default:"0" }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="11">موردی یافت نشد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- دکمه چاپ زیر جدول -->
+    <div style="margin-top:12px">
+      <button class="button" type="button" onclick="printClubPartial()">چاپ جدول</button>
+    </div>
+
+    <!-- محتوای خام چاپ (از پارشیالِ مخصوص چاپ) -->
+    <div id="cl-print" style="display:none">
+      {% include "admin/reports/_club_students_print.html" with rows=club_students.rows club_name=club_display %}
+    </div>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  const fa="۰۱۲۳۴۵۶۷۸۹", en="0123456789";
+  const faToEn=s=>String(s||"").replace(/[۰-۹]/g,d=>en[fa.indexOf(d)]);
+  const clean=s=>faToEn(String(s||"").toLowerCase().replace(/\u200c|‌/g,"").replace(/[\/.\u2013\u2014\u2212]/g,"-").replace(/\s+/g," ").trim());
+
+  const tbl=document.getElementById('cl-table');
+  const search=document.getElementById('cl-search');
+  const clear=document.getElementById('cl-clear');
+  const counter=document.getElementById('cl-count');
+  if(tbl){
+    const allRows=[...tbl.querySelectorAll('tbody tr')];
+    const emptyRow=allRows.find(r=>r.children.length===1||/یافت نشد/.test(r.textContent));
+    const dataRows=emptyRow?allRows.filter(r=>r!==emptyRow):allRows;
+
+    dataRows.forEach(r=>{r.dataset.cs=clean(r.textContent||r.innerText||""); r.style.display="";});
+    if(emptyRow) emptyRow.style.display=dataRows.length?"none":"";
+
+    function applyFilter(){
+      const q=clean(search.value); let visible=0;
+      if(!q){ dataRows.forEach(r=>{r.style.display=""; visible++;}); }
+      else{
+        dataRows.forEach(r=>{ const show=r.dataset.cs.includes(q); r.style.display=show?"":"none"; if(show) visible++; });
+      }
+      if(emptyRow) emptyRow.style.display=visible?"none":"";
+      if(counter) counter.textContent=String(visible);
+    }
+    if(search){ search.addEventListener('input',applyFilter); search.addEventListener('keyup',applyFilter); }
+    if(clear){ clear.addEventListener('click',()=>{search.value=""; applyFilter();}); }
+    applyFilter();
+
+    // سورت ساده
+    const COL_TYPES=['text','text','num','text','date','num','num','num','num','num','num'];
+    function getCellVal(tr,idx){ const el=tr.children[idx]; return clean(el?(el.innerText||el.textContent||""):""); }
+    function cmpFactory(type,dir){
+      if(type==='num'){ return (a,b)=>((parseFloat(getCellVal(a,a._idx))||0)-(parseFloat(getCellVal(b,b._idx))||0))*dir; }
+      if(type==='date'){ return (a,b)=>{const sa=getCellVal(a,a._idx), sb=getCellVal(b,b._idx); if(!sa&&!sb) return 0; if(!sa) return 1; if(!sb) return -1; return (sa<sb?-1:sa>sb?1:0)*dir;}; }
+      return (a,b)=> getCellVal(a,a._idx).localeCompare(getCellVal(b,b._idx),'fa',{numeric:true,sensitivity:'base'})*dir;
+    }
+    function setIndicator(th,state){
+      const ths=[...th.parentElement.children];
+      ths.forEach(h=>{const i=h.querySelector('.cs-sort-ind')||h.appendChild(Object.assign(document.createElement('span'),{className:'cs-sort-ind'})); if(h===th) return; i.textContent=''; h.dataset.sortDir='';});
+      const ind=th.querySelector('.cs-sort-ind')||th.appendChild(Object.assign(document.createElement('span'),{className:'cs-sort-ind'}));
+      ind.textContent= state==='asc'?'▲':state==='desc'?'▼':'';
+    }
+    [...tbl.querySelectorAll('thead th')].forEach((th,idx)=>{
+      const type=COL_TYPES[idx]||'text';
+      th.classList.add('cs-sortable'); th.dataset.sortDir='';
+      th.addEventListener('click',()=>{
+        const nextDir=th.dataset.sortDir?(th.dataset.sortDir==='asc'?'desc':'asc'):(type==='num'?'desc':'asc');
+        th.dataset.sortDir=nextDir; setIndicator(th,nextDir);
+        const tbody=tbl.querySelector('tbody');
+        const rowsToSort=dataRows.filter(r=>r.style.display!=='none'); rowsToSort.forEach(r=> r._idx=idx);
+        const dirNum=nextDir==='asc'?1:-1; rowsToSort.sort(cmpFactory(type,dirNum));
+        const frag=document.createDocumentFragment();
+        const hidden=dataRows.filter(r=>r.style.display==='none'); hidden.forEach(r=>frag.appendChild(r));
+        rowsToSort.forEach(r=>frag.appendChild(r)); if(emptyRow) frag.appendChild(emptyRow);
+        tbody.appendChild(frag);
+      });
+    });
+  }
+
+  // چاپ مستقل پارشیال
+  window.printClubPartial = function(){
+    const src = document.getElementById('cl-print');
+    if(!src) return;
+    const w = window.open('', '_blank');
+    w.document.open();
+    w.document.write(`
+      <!doctype html><html lang="fa" dir="rtl">
+      <head><meta charset="utf-8"><title>چاپ شاگردان باشگاه</title></head>
+      <body>${src.innerHTML}</body>
+      </html>
+    `);
+    w.document.close();
+    // صبر کوتاه برای رندر فونت/جدول، سپس پرینت و بستن
+    w.focus();
+    setTimeout(()=>{ w.print(); w.close(); }, 200);
+  };
+})();
+</script>

@@ -1,0 +1,90 @@
+{# templates/admin/reports/_board_coaches_referees_print.html #}
+<style>
+  @media print { @page { size: A4 landscape; margin: 6mm } }
+
+  .cs-print{ font-family:Tahoma, Vazirmatn, Arial, sans-serif; margin:0; }
+  .cs-print h2{ margin:0 0 6px; font-weight:700; font-size:16px; }
+  .cs-print .sub{ margin:0 0 8px; color:#475569; font-size:12px; }
+  .cs-print .num{ font-variant-numeric:tabular-nums; direction:ltr; }
+
+  .cs-print table{ width:100%; border-collapse:collapse; table-layout:fixed; font-size:11px; }
+  .cs-print th,.cs-print td{
+    border:1px solid #dfe3e8; padding:4px 6px; text-align:center; vertical-align:middle;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .cs-print thead th{ background:#f3f4f6; white-space:nowrap; }
+
+  /* فقط نام و باشگاه‌ها اجازهٔ چندخطی دارند */
+  .cs-print td.wrap, .cs-print th.wrap {
+    white-space:normal !important; overflow:visible; text-overflow:clip; line-height:1.8;
+    word-break:break-word; overflow-wrap:anywhere;
+  }
+
+  /* هدر/فوتر ثابت و جلوگیری از شکستن ردیف‌ها */
+  .cs-print thead{ display:table-header-group; }
+  .cs-print tfoot{ display:table-footer-group; }
+  .cs-print tr{ page-break-inside:avoid; }
+
+  /* هر 30 ردیف یک شکست صفحه */
+  .cs-print tbody tr:nth-child(30n):not(:last-child){ page-break-after:always; }
+</style>
+
+<div class="cs-print">
+  <h2>گزارش مربی و داور هیئت‌ها</h2>
+  <div class="sub">
+    هیئت: <b>{{ board_name|default:board_display_for_cr|default:board_display|default:"—" }}</b>
+    {% if role_display %} — نقش: <b>{{ role_display }}</b>{% endif %}
+    <span style="margin-inline-start:12px">تعداد افراد: <span class="num">{{ rows|length }}</span></span>
+  </div>
+
+  <table>
+    <colgroup>
+      <col style="width:18%"><!-- نام -->
+      <col style="width:8%"><!-- نقش -->
+      <col style="width:12%"><!-- کدملی -->
+      <col style="width:12%"><!-- موبایل -->
+      <col style="width:22%"><!-- باشگاه‌ها -->
+      <col style="width:8%"><!-- تعداد بازیکنان -->
+      <col style="width:11%"><!-- تاریخ عضویت -->
+      <col style="width:3.5%"><col style="width:3.5%"><col style="width:3.5%"><!-- مدال‌ها -->
+      <col style="width:5.5%"><!-- رنک کل -->
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="wrap">نام و نام‌خانوادگی</th>
+        <th>نقش</th>
+        <th>کدملی</th>
+        <th>موبایل</th>
+        <th class="wrap">باشگاه(ها)</th>
+        <th>تعداد بازیکنان</th>
+        <th>تاریخ عضویت/تأیید</th>
+        <th>طلا</th>
+        <th>نقره</th>
+        <th>برنز</th>
+        <th>رنک.کل</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr>
+          <td class="wrap" title="{{ row.full_name|default:'-' }}">{{ row.full_name|default:"-" }}</td>
+          <td title="{{ row.role_label|default:'-' }}">{{ row.role_label|default:"-" }}</td>
+          <td class="num" title="{{ row.national_code|default:'-' }}">{{ row.national_code|default:"-" }}</td>
+          <td class="num" title="{{ row.phone|default:'-' }}">{{ row.phone|default:"-" }}</td>
+          <td class="wrap" title="{{ row.club_name|default:'-' }}">{{ row.club_name|default:"-" }}</td>
+          <td class="num" title="{{ row.players_count|default:'0' }}">{{ row.players_count|default:"0" }}</td>
+          <td class="num" title="{{ row.joined_jalali|default:'-' }}">{{ row.joined_jalali|default:"-" }}</td>
+          <td class="num" title="{{ row.medal_gold|default:'0' }}">{{ row.medal_gold|default:"0" }}</td>
+          <td class="num" title="{{ row.medal_silver|default:'0' }}">{{ row.medal_silver|default:"0" }}</td>
+          <td class="num" title="{{ row.medal_bronze|default:'0' }}">{{ row.medal_bronze|default:"0" }}</td>
+          <td class="num" title="{{ row.rank_total|default:'0' }}">{{ row.rank_total|default:"0" }}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="11">موردی یافت نشد.</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="11">مجموع رکوردها: {{ rows|length }}</td></tr>
+    </tfoot>
+  </table>
+</div>
