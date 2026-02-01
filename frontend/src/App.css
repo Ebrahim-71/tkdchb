@@ -1,0 +1,97 @@
+body {
+  font-family: 'IRANSansWeb', sans-serif;
+  text-align: center;
+  overflow-x: hidden;
+  margin: 0;
+  direction: rtl;
+}
+
+.main-content {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+}
+
+.slider {
+  width: 23%;
+}
+
+.slider-section {
+  max-width: 465px;
+  margin-top: 10px;
+}
+
+.news-section,
+.announcements-section,
+.letters-section {
+  margin-bottom: 2rem;
+}
+
+/* ✅ دکمه نمایش اسلایدر در موبایل */
+.slider-toggle-btn {
+  display: none;
+}
+
+/* ✅ حالت موبایل */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .main-content {
+    flex-direction: column;
+    align-items: center;
+    padding: 0 10px;
+  }
+
+  .slider {
+   
+    display: none;
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+    animation: slideDown 0.5s ease forwards;
+    width: 100%;
+  }
+
+  /* ✅ وقتی نمایش اسلایدر فعال شد */
+  .slider.show-mobile {
+    display: flex !important;
+  }
+
+  .slider-toggle-btn {
+    display: block;
+    background-color: #2185d0;
+    color: white;
+    padding: 10px 16px;
+    margin: 10px auto;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .slider-section {
+    max-width: 100%;
+    padding: 0;
+    margin-top: 5px;
+  }
+
+  .news-section,
+  .announcements-section,
+  .letters-section {
+    margin-bottom: 1.5rem;
+  }
+}
+
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,0 +1,66 @@
+.change-clubs {
+  max-width: 700px;
+  margin: 40px auto;
+  padding: 24px;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  direction: rtl;
+}
+
+.change-clubs h2 {
+  text-align: center;
+  margin-bottom: 24px;
+  font-size: 24px;
+  color: #333;
+}
+
+.clubs-header, .club-row {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr;
+  padding: 12px;
+  align-items: center;
+  border-bottom: 1px solid #ddd;
+}
+
+.clubs-header {
+  background-color: #eee;
+  font-weight: bold;
+}
+
+.club-row:nth-child(even) {
+  background-color: #fcfcfc;
+}
+
+.club-row:nth-child(odd) {
+  background-color: #f1f1f1;
+}
+
+.club-row div {
+  padding: 6px 10px;
+}
+
+.confirm-btn {
+  background-color: #1d72b8;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.confirm-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  background-color: #145a96;
+}
+
+.submit-wrapper {
+  text-align: center;
+  margin-top: 24px;
+}

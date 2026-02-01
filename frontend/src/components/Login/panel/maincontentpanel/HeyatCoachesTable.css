@@ -1,0 +1,155 @@
+.heyat-coaches-table {
+  padding: 2rem;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  font-family: 'IRANSans', sans-serif;
+}
+
+.heyat-coaches-title {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #333;
+}
+
+.heyat-coaches-filters {
+  display: flex
+;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    justify-content: center;
+}
+
+.heyat-coaches-filters select,
+.heyat-coaches-filters .date-input,
+.heyat-coaches-filters .search-input {
+  padding: 0.6rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background-color: #f9f9f9;
+  min-width: 180px;
+}
+
+.heyat-coaches-table-container {
+  width: 100%;
+  overflow-x: hidden !important;
+  border-radius: 8px;
+}
+
+/* Scrollbar */
+.heyat-coaches-table-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.heyat-coaches-table-container::-webkit-scrollbar-thumb {
+  background-color: #999;
+  border-radius: 3px;
+}
+
+.heyat-coaches-table-container::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+
+/* Desktop Table */
+.heyat-coaches-table-header,
+.heyat-coaches-table-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(120px, 1fr));
+  gap: 0.75rem;
+  padding: 0.8rem 0px;
+  align-items: center;
+  min-width: 100%;
+}
+
+.heyat-coaches-table-header {
+  background-color: #004080;
+  color: #fff;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
+}
+
+.heyat-coaches-table-row {
+  transition: background-color 0.2s ease;
+
+}
+
+.heyat-coaches-table-row.row-light {
+  background-color: #f2f6fa;
+   padding: 5px;
+    height: 45px;
+}
+
+.heyat-coaches-table-row.row-dark {
+  background-color: #e4e7fa;
+   padding: 5px;
+    height: 45px;
+}
+
+.heyat-coaches-table-row:hover {
+  background-color: #d6e4f2;
+  
+}
+
+.heyat-coaches-table-row div,
+.heyat-coaches-table-header div {
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 768px) {
+  .heyat-coaches-table-header {
+    display: none;
+  }
+
+  .heyat-coaches-table-row {
+    display: block;
+    background-color: #f9fbff;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .heyat-coaches-table-row div {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.4rem 25px;
+    font-size: 0.95rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .heyat-coaches-table-row div:last-child {
+    border-bottom: none;
+  }
+
+  .heyat-coaches-table-row div::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: #444;
+  }
+
+  .heyat-coaches-table-row.columns-7 {
+    grid-template-columns: none !important;
+    min-width: unset !important;
+  }
+
+  .heyat-coaches-filters {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .heyat-coaches-filters select,
+  .heyat-coaches-filters .date-input,
+  .heyat-coaches-filters .search-input {
+    width: 100% !important;
+    min-width: unset !important;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+}

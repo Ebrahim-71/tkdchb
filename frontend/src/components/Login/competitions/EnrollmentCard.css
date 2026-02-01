@@ -1,0 +1,119 @@
+.enroll-card {
+  background: #fff;
+  border: 1px solid #e6e6e6;       /* کادر دور کارت */
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.05);
+}
+
+/* تیترِ وسط */
+.enroll-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.enroll-card__head--center {
+  justify-content: center;          /* وسط‌چین تیتر */
+}
+.enroll-card__title { margin: 0; }
+
+/* گرید‌ها و عکس */
+.enroll-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+}
+.enroll-card__grid--photo {
+  grid-template-columns: 140px 1fr 1fr;
+  align-items: start;
+}
+
+.enroll-card__divider {
+  border-top: 1px solid #eee;
+  margin: 12px 0 8px;
+}
+
+.enroll-card__photo-wrap {
+  width: 120px; height: 150px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+.enroll-card__photo {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.enroll-card__photo.placeholder {
+  display: grid; place-items: center;
+  color: #9ca3af; background: #f3f4f6;
+}
+
+/* ردیف‌های اطلاعات */
+.enroll-card__info-cols .cd-row { margin-bottom: 8px; }
+
+/* پایین کارت: متن راهنما + دکمه‌ها */
+.enroll-card__footer {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.enroll-card__notice {
+  color: #444;
+  font-size: 13px;
+}
+
+/* دکمه‌ها */
+.enroll-card__actions {
+  margin-top: 8px;
+  display: flex; gap: 8px; justify-content: flex-start;
+}
+
+/* ───────────────────────────── چاپ ───────────────────────────── */
+@page {
+  size: A4 landscape;
+  margin: 12mm;
+}
+@media print {
+  /* همه پس‌زمینه‌ها حذف؛ سایه‌ها هم غیرفعال */
+  * {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  /* صفحه و کانتینرها حتماً سفید باشند (نه خاکستری) */
+  html, body, #root,
+  .dashboard-container, .dashboard-main, .cd-container {
+    background: #fff !important;
+  }
+
+  /* خود کارت سفید بماند و نشکند */
+  .enroll-card {
+    background: #fff !important;
+    border: 1px solid #000 !important;
+    padding: 10mm !important;
+    
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  /* هر کارت روی یک صفحه جدا بیفتد */
+  .enroll-card:not(:last-of-type) {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  /* عناصر اضافی در چاپ مخفی شوند */
+  .sidebar,
+  .toggle-sidebar-btn,
+  header, footer,
+  .cd-actions,
+  .enroll-card__actions,
+  .cd-modal { display: none !important; }
+
+  /* اگر عکسِ جایگزینِ بدون تصویر پس‌زمینه داشت، در چاپ هم سفید شود */
+  .enroll-card__photo.placeholder { background: #fff !important; }
+}

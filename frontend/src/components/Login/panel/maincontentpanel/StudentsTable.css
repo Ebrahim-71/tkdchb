@@ -1,0 +1,256 @@
+.students-table {
+  padding: 2rem;
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  font-family: 'IRANSans', sans-serif;
+}
+
+.students-title {
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #333;
+}
+
+.students-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.students-filters select,
+.students-filters .date-input,
+.students-filters .search-input {
+   padding: 0.6rem 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background-color: #f9f9f9;
+  min-width: 180px;
+}
+
+.students-table-container {
+  width: 100%;
+  overflow-x: hidden !important;
+  border-radius: 8px;
+  padding: 5px;
+}
+
+/* Scrollbar زیبا */
+.students-table-container::-webkit-scrollbar {
+  height: 6px;
+}
+.students-table-container::-webkit-scrollbar-thumb {
+  background-color: #999;
+  border-radius: 3px;
+}
+.students-table-container::-webkit-scrollbar-track {
+  background-color: #f1f1f1;
+}
+
+/* ساختار جدول دسکتاپ */
+.students-table-header,
+.students-table-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(120px, 1fr));
+  gap: 0.75rem;
+  padding: 0.8rem 1.5rem;
+  align-items: center;
+  min-width: 100%;
+}
+
+.students-table-header {
+  background-color: #004080;
+  color: #fff;
+  font-weight: bold;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-radius: 8px 8px 0 0;
+}
+
+.students-table-row {
+  transition: background-color 0.2s ease;
+
+}
+
+.students-table-row.row-light {
+  background-color: #f2f6fa;
+   padding: 5px;
+    height: 45px;
+}
+
+.students-table-row.row-dark {
+      background-color: #e4e7fa;
+    padding: 5px;
+    height: 45px;
+}
+
+.students-table-row:hover {
+  background-color: #d6e4f2;
+}
+
+.students-table-row div,
+.students-table-header div {
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+/* --- ستون‌بندی داینامیک برای تعداد ستون‌های جدید --- */
+/* مقدار پیش‌فرض شما 7 بود؛ ما 3 ستون اضافه کردیم → 9 یا 10 ستون */
+.students-table-header.columns-9,
+.students-table-row.columns-9 {
+  grid-template-columns: repeat(9, minmax(100px, 1fr));
+}
+
+.students-table-header.columns-10,
+.students-table-row.columns-10 {
+  grid-template-columns: repeat(10, minmax(95px, 1fr));
+}
+
+/* اگر جایی در آینده ستون بیشتری شد */
+.students-table-header.columns-11,
+.students-table-row.columns-11 {
+  grid-template-columns: repeat(11, minmax(90px, 1fr));
+}
+.students-table-header.columns-12,
+.students-table-row.columns-12 {
+  grid-template-columns: repeat(12, minmax(85px, 1fr));
+}
+
+/* مدال‌ها: بج‌های ساده و خوانا */
+.medal-badges {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  direction: rtl;
+}
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  line-height: 1.6;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  white-space: nowrap;
+  font-weight: 600;
+}
+.badge-gold   { background: #fff7cc; }
+.badge-silver { background: #eef2f7; }
+.badge-bronze { background: #ffe9d6; }
+
+/* کمی بهینه‌سازی ترازبندی بعضی ستون‌ها */
+.students-table-row div[data-label="مسابقات"],
+.students-table-row div[data-label="رنکینگ"] {
+  font-variant-numeric: tabular-nums;
+}
+
+
+@media (max-width: 768px) {
+
+  /* فیلترها */
+  .students-filters{
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: 0.75rem;
+  }
+  .students-filters select,
+  .students-filters .date-input,
+  .students-filters .search-input{
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    font-size: 1rem;
+  }
+
+  /* فقط جدول اسکرول افقی بخورد */
+  .students-table-container{
+    width: 100%;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+
+    /* برای RTL: شروع جدول از سمت راست */
+    direction: rtl;
+
+    padding: 0;
+  }
+
+  /* مهم: در موبایل این را نداشته باش (باعث بریده شدن می‌شود) */
+  .students-table{
+    overflow: visible !important;
+  }
+
+  /* هدر در موبایل نمایش داده شود */
+  .students-table-header{
+    display: grid !important;
+    position: sticky;
+    top: 0;
+    z-index: 3;
+  }
+
+  /* ردیف‌ها و هدر: جدول افقی */
+  .students-table-header,
+  .students-table-row{
+    display: grid !important;
+
+    /* اینجا عرض ستون‌ها را ثابت می‌کنیم تا با اسم بلند جابه‌جا نشوند */
+    grid-template-columns:
+      260px  /* 1) نام و نام خانوادگی */
+      160px  /* 2) کد ملی */
+      150px  /* 3) تاریخ تولد */
+      140px  /* 4) درجه کمربند */
+      150px  /* 5) تاریخ اخذ کمربند */
+      110px  /* 6) مسابقات */
+      220px  /* 7) مدال‌ها */
+      110px  /* 8) رنکینگ */
+      160px  /* 9) باشگاه */
+      140px; /* 10) ستون آخر (اگر ندارید، این خط را حذف کنید) */
+
+    gap: 0.5rem;
+    padding: 0.75rem;
+
+    /* عرض ثابت برای فعال شدن اسکرول */
+    min-width: 1420px; /* متناسب با جمع ستون‌ها */
+    direction: rtl;
+    align-items: center;
+  }
+
+  /* سلول‌ها: اجازه کوچک شدن در grid */
+  .students-table-header > div,
+  .students-table-row > div{
+    min-width: 0 !important;
+    text-align: center;
+    white-space: nowrap;     /* پیش‌فرض یک‌خطی */
+    overflow: hidden;
+    text-overflow: clip;     /* پیش‌فرض بریدن نکن؛ فقط نام ellipsis بگیرد */
+  }
+
+  /* فقط ستون 1 (نام) ellipsis بگیرد */
+  .students-table-header > div:nth-child(1),
+  .students-table-row > div:nth-child(1){
+    text-overflow: ellipsis;
+  }
+
+  /* ستون مدال‌ها اجازه wrap داشته باشد تا badgeها دیده شوند */
+  .students-table-row > div:nth-child(7){
+    white-space: normal;
+    overflow: visible;
+  }
+
+  /* خنثی‌سازی کامل حالت کارت عمودی قبلی */
+  .students-table-row div::before{
+    content: none !important;
+  }
+
+  /* حذف height ثابت که قبلاً موبایل را خراب می‌کرد */
+  .students-table-row.row-light,
+  .students-table-row.row-dark{
+    height: auto !important;
+    padding: 0.75rem !important;
+  }
+}

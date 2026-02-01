@@ -1,0 +1,194 @@
+/* کانتینر اصلی صفحه فقط برای صفحه تیمی (اگه خواستی استفاده کنی) */
+.ptr-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+/* هدر بالا (الگوش روی cd-hero.small هم اعمال می‌شود) */
+.ptr-header,
+.cd-hero.small {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+}
+
+/* عنوان هدر */
+.ptr-title,
+.cd-hero.small .cd-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+/* زیرعنوان (اگر خواستی استفاده کنی) */
+.ptr-subtitle {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* چیپ‌ها (و معادل‌شان در cd-*) */
+.ptr-chips,
+.cd-hero.small .cd-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.ptr-chip,
+.cd-chip {
+  font-size: 0.85rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #f4f4f5;
+}
+
+/* چیپ سبز/قرمز برای باز/بسته بودن ثبت‌نام */
+.ptr-chip.ok,
+.cd-chip.ok {
+  background: #e0f7ec;
+  color: #067647;
+}
+
+.ptr-chip.nok,
+.cd-chip.nok {
+  background: #fde8e8;
+  color: #b91c1c;
+}
+
+/* نوار هشدار (متن زرد بالای صفحه) */
+.ptr-warning,
+.cd-note.cd-note--poomsae {
+  margin: 0 auto 24px;
+  max-width: 900px;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: #fff7ed;
+  border: 1px dashed #f97316;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* عنوان بخش‌ها (تیم‌ها / خلاصه) */
+.ptr-section-title,
+.cd-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 12px 0 10px;
+  text-align: center;
+}
+
+/* کارت هر تیم (cd-card) */
+.cd-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+}
+
+/* ردیف‌های فرم داخل کارت */
+.ptr-team-row,
+.cd-card .cd-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* فیلدها (لیبل + input/select) */
+.ptr-field,
+.cd-row .cd-value {
+  flex: 1 1 220px;
+}
+
+.ptr-field label,
+.cd-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.ptr-field input,
+.ptr-field select,
+.cd-input {
+  width: 80%;
+  min-height: 38px;
+}
+
+/* دکمه حذف تیم */
+.ptr-team-delete-btn {
+  align-self: center;
+}
+
+/* خلاصه پایین صفحه (آمار + مبالغ) */
+.ptr-summary,
+.cd-discount-summary {
+  background: #fff;
+    border-radius: 16px;
+    display: flex;
+    font-size: .95rem;
+    margin: 32px 0 24px;
+    padding: 10px 16px;
+}
+
+.ptr-summary span,
+.cd-discount-summary > div {
+  margin-inline: 6px;
+}
+
+/* اکشن‌ها پایین (بازگشت / تأیید و پرداخت) */
+.ptr-actions,
+.cd-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  gap: 8px;
+}
+.poomsae-member-card {
+  border: 1px dashed #dcdcdc;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.insurance-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+
+/* موبایل */
+@media (max-width: 768px) {
+  .ptr-header,
+  .cd-hero.small {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ptr-actions,
+  .cd-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+  .insurance-grid {
+    grid-template-columns: 1fr;
+  }
+  .ptr-team-row,
+  .cd-card .cd-row {
+    align-items: stretch;
+  }
+
+  .ptr-team-delete-btn {
+    align-self: flex-start;
+  }
+}

@@ -1,0 +1,60 @@
+.circular-slider-wrapper {
+  max-width: 700px;
+  margin: auto;
+  padding: 5px 29px 70px;
+  position: relative;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  background-color: white;
+  margin-bottom: 10px;
+  margin-left: 5px;
+  box-sizing: border-box;
+  min-height: 360px; /* ❗ جلوگیری از فشرده شدن اسلایدها */
+}
+
+.circular-slider-wrapper h4 {
+  margin: 10px;
+}
+
+.circular-slide {
+  text-align: center;
+}
+
+.circular-image {
+  width: 100%;
+  height: 285px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.circular-caption h3 {
+  margin: 10px 0 20px;
+  font-size: 15px;
+  color: #333;
+  padding: 0 10px;
+}
+
+.slick-dots {
+  position: absolute;
+  bottom: -20px;
+  list-style: none;
+  display: flex !important;
+  justify-content: center;
+  gap: 8px;
+  padding: 0;
+}
+
+.slick-dots li button::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  background-color: #ccc;
+  border-radius: 50%;
+  display: block;
+}
+
+.slick-dots li.slick-active button::before {
+  background-color: white;
+  box-shadow: 0 0 0 2px #00000066;
+}

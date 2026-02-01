@@ -1,0 +1,387 @@
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.step label {
+  margin-bottom: 15px;
+  font-size: 14px;
+  color: #333;
+}
+
+.step input,
+.step select {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.step-buttons {
+  display: flex
+;
+    justify-content: space-around;
+    margin-top: 2rem;
+    flex-direction: row-reverse;
+}
+
+.step-buttons button {
+  padding: 0.6rem 1.4rem;
+  font-size: 1rem;
+  background-color: #2185d0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.invalid {
+  border: 1px solid red !important;
+  background-color: #fff5f5;
+}
+
+.birth-date {
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-error-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-error-box {
+  background: white;
+  padding: 1.5rem 2rem;
+  border-radius: 10px;
+  text-align: center;
+  max-width: 300px;
+  box-shadow: 0 0 10px #aaa;
+}
+
+.modal-error-box p {
+  margin-bottom: 1rem;
+}
+
+.modal-error-box button {
+  background-color: #d33;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+
+.club-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.club-checkbox {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.club-checkbox input[type="checkbox"] {
+  margin-left: 0.5rem;
+  cursor: pointer;
+}
+.dropdown-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.dropdown {
+  border: 1px solid #ccc;
+  padding: 8px;
+  cursor: pointer;
+  background: #fff;
+  position: relative;
+}
+
+.dropdown-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.dropdown-options {
+      position: absolute;
+    top: 100%;
+    right: 0px;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid #ccc;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.checkbox-option {
+  display: block;
+  padding: 6px 10px;
+}
+
+.error-text {
+  color: red;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.register-page {
+ display: flex
+;
+    height: 100%;
+    width: 100%;
+    border: solid;
+    border-radius: 150px;
+}
+
+.register-form-section {
+  width: 50%;
+  padding: 2rem 3rem;
+  overflow-y: auto;
+  direction: rtl;
+}
+
+.register-image-section {
+  width: 50%;
+  overflow: hidden;
+      border-radius: 150px 15px 15px 150px;
+}
+
+.register-image-section img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.checkbox1 {
+    max-width: 24px;
+    height: 24px;
+}
+
+
+
+
+
+
+.custom-select-checkbox {
+  position: relative;
+  margin-bottom: 1.5rem;
+  direction: rtl;
+  font-family: Vazirmatn, sans-serif;
+}
+
+.dropdown {
+      position: relative;
+    height: 22px;
+}
+
+.dropdown-toggle {
+      font-size: 1rem;
+    padding: 0rem 1rem;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    cursor: pointer;
+    text-align: right;
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+.dropdown-menu {
+    
+    display: flex
+;
+    position: absolute;
+    z-index: 10;
+    right: -1px;
+    width: 97%;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    background-color: #fff;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 0.5rem;
+    border-radius: 0 0 4px 4px;
+    top: 38px;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.dropdown-item {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 0.4rem 0.6rem;
+  font-size: 1rem;
+  direction: rtl;
+}
+
+.dropdown-item input[type="checkbox"] {
+  margin-left: 10px;
+  width: 20px;
+  height: 20px;
+  accent-color: #2185d0;
+}
+label.dropdown-item {
+    display: flex
+;
+    flex-wrap: wrap;
+    align-items: baseline;
+}
+
+.referee-type-row {
+     display: flex
+;
+    flex-direction: column;
+    justify-content: space-evenly;
+    flex-wrap: nowrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.referee-type-box {
+  flex: 1 1 30%;
+  border: 1px solid #ddd;
+  padding: 0.8rem;
+  border-radius: 8px;
+  background-color: #f9f9f9;
+}
+
+.referee-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 1rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.referee-checkbox input[type="checkbox"] {
+  margin-left: 0.5rem;
+  width: 18px;
+  height: 18px;
+  accent-color: #2185d0;
+}
+
+.referee-grade-section {
+  margin-top: 0.5rem;
+}
+label.referee-checkbox {
+    display: flex
+;
+    justify-content: center;
+}
+
+
+.confirm {
+    display: flex 
+;
+} 
+
+
+.c-chekbox{
+  width: 24px   !important; 
+  height: 24px;
+}
+
+textarea {
+       width: 100%;
+    height: 150px;
+}
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+
+  .register-page {
+    flex-direction: column;
+    align-items: center;
+    border-radius: 20px;
+  }
+
+  .register-image-section {
+    display: none;
+  }
+
+  .register-form-section {
+    width: 100%;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .step {
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .step input,
+  .step select,
+  .step textarea {
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 0.5rem;
+  }
+
+  .step-buttons {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .step-buttons button {
+    width: 100%;
+    max-width: 300px;
+    font-size: 0.95rem;
+  }
+
+  .dropdown-menu {
+    width: 100%;
+    right: 0;
+  }
+
+  .modal-error-box {
+    width: 90%;
+    max-width: 300px;
+  }
+
+  .referee-type-row {
+    flex-direction: column;
+  }
+
+  .referee-type-box {
+    width: 100%;
+  }
+
+  textarea {
+    height: 120px;
+  }
+
+  .back-button,
+  .back-to-home {
+    text-align: center;
+  }
+}

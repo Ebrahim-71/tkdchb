@@ -1,0 +1,131 @@
+/* ===== Theme ===== */
+:root{
+  --bg:#f6f7fb;
+  --card:#ffffff;
+  --muted:#6b7280;
+  --text:#0f172a;
+  --border:#e5e7eb;
+  --shadow:0 12px 30px rgba(2,6,23,.06);
+  --ring:rgba(59,130,246,.14);
+  --gold:#eab308;    /* amber-500 */
+  --silver:#94a3b8;  /* slate-400 */
+  --bronze:#d97706;  /* orange-600 */
+}
+
+.res-container{max-width:1160px;margin:0 auto;padding:20px;}
+
+/* ===== Hero ===== */
+.res-hero{
+  display:grid;
+  grid-template-columns: 96px 1fr auto;
+  align-items:center; gap:16px;
+  background: linear-gradient(135deg,#9eb5ff, #ffffff 40%);
+  border:1px solid var(--border);
+  border-radius:18px; padding:16px 18px;
+  box-shadow: var(--shadow);
+  margin-bottom:14px;
+}
+.res-poster{width:96px;height:96px;object-fit:cover;border-radius:14px;border:1px solid var(--border);background:#f8fafc;}
+.res-hero-body{min-width:0;}
+.res-title{margin:0 0 4px 0; font-size:26px; font-weight:800; color:var(--text); text-align:center;}
+@media(min-width:640px){ .res-title{text-align:inherit;} }
+.res-subtitle{color:var(--muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+.res-link{color:#111827; font-weight:700; text-decoration:none;}
+.res-link:hover{text-decoration:underline;}
+.res-dot{color:#a3a3a3;}
+.res-chip{background:#f1f5f9;border:1px solid var(--border);border-radius:999px;padding:2px 10px;font-size:12px}
+
+/* ===== Actions ===== */
+.res-actions{display:flex;gap:8px}
+.btn{height:38px;border-radius:10px;padding:0 14px;border:1px solid var(--border);background:#fff;cursor:pointer}
+.btn:hover{box-shadow:0 0 0 4px var(--ring)}
+.btn-light{background:#f8fafc}
+.btn-outline{background:#fff}
+
+/* ===== Toolbar ===== */
+.res-toolbar{display:flex;align-items:center;gap:12px;justify-content:space-between;margin:14px 0}
+.res-search{
+  flex:1; height:44px; border-radius:12px; padding:0 14px 0 44px;
+  border:1px solid var(--border); outline:none; background:#fff;
+  background-image:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="%2394a3b8" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>');
+  background-repeat:no-repeat; background-position: left 12px center;
+  box-shadow: var(--shadow);
+}
+.res-search:focus{border-color:#cbd5e1; box-shadow:0 0 0 4px var(--ring)}
+.res-count{color:var(--muted); white-space:nowrap}
+
+/* ===== Card/Table ===== */
+.res-content{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:8px;
+  box-shadow: var(--shadow);
+}
+
+.res-skeleton,.res-empty,.res-error{padding:36px;text-align:center;color:var(--muted)}
+.res-error{color:#b91c1c}
+
+.res-table-wrap{overflow:auto; max-height:70vh; border-radius:12px}
+
+/* Table base */
+.res-table{width:100%; border-collapse:separate; border-spacing:0}
+.res-table thead th{
+     top: 0;
+    position: sticky;
+    z-index: 5;
+    border-radius: 10px;
+    background: #f2f2f2;
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    padding: 12px 10px;
+    text-align: center;
+    font-weight: 800;
+    color: #111827;
+}
+.tr {
+    cursor: pointer;
+}
+/* Zebra + hover */
+.res-table tbody tr:nth-child(even){ background: #00bbff1c;}
+.res-table tbody tr:hover{background:#5555553a}
+.res-table tbody td{
+  padding:12px 10px; border-bottom:1px solid #f1f5f9; color:#111827; white-space:nowrap;
+}
+
+/* Sticky weight (اولین ستون، در RTL سمت راست می‌چسبد) */
+.res-table th.col-weight,
+.res-table td.col-weight{
+  position: sticky; right: 0; z-index: 6; background:#ffffffee;
+  box-shadow: -1px 0 0 var(--border);
+  font-weight:700;
+}
+
+/* Medal columns – subtle color cues */
+.res-table thead th.col-gold{color:var(--gold)}
+.res-table thead th.col-silver{color:var(--silver)}
+.res-table thead th.col-bronze{color:var(--bronze)}
+
+.res-table tbody td.col-gold b,
+.res-table tbody td.col-gold strong{color:var(--gold)}
+.res-table tbody td.col-silver b,
+.res-table tbody td.col-silver strong{color:var(--silver)}
+.res-table tbody td.col-bronze b,
+.res-table tbody td.col-bronze strong{color:var(--bronze)}
+
+/* Narrow screens */
+@media (max-width: 640px){
+  .res-hero{grid-template-columns:72px 1fr; }
+  .res-actions{grid-column:1/-1}
+  .res-table-wrap{max-height:none}
+}
+
+/* Print */
+@media print{
+  .no-print{display:none!important}
+  .res-container{padding:0;max-width:none}
+  .res-hero{border:none;box-shadow:none;background:#fff}
+  .res-content{box-shadow:none;border:none}
+  .res-table thead th{backdrop-filter:none; background:#fff}
+}
