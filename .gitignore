@@ -1,43 +1,39 @@
-
-# env & secrets
+# --- Secrets ---
 .env
+.env.*
 
-# python
+# --- Python / Django ---
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*.log
+*.sqlite3
+*.db
 
-# virtualenv
-.venv/
+# --- Virtualenv ---
 venv/
-virtualenv/
+.venv/
+_env/
+_venv*/
+*_venv*
 
-# django
-db.sqlite3
+# --- Django uploads & generated assets ---
 media/
 staticfiles/
-logs/
-stderr.log
 
-# node / frontend (if any)
-node_modules/
+# اگر static/ خروجی build یا تولیدی است، نگه ندار. اگر سورس دستی پروژه است، این خط را حذف کن.
+# static/
 
-# editors
-.idea/
-.vscode/
-.DS_Store
-
-# temp / junk
+# --- Runtime / temp ---
 tmp/
-*.log
+*.pid
 
-# archives
+# --- Archives / backups ---
 *.zip
-# cPanel / local junk
-_venv*/
-True
-div/
+*.tar
+*.tar.gz
+*.gz
 
-.gitignoreamama
-
+# --- Editors ---
+.vscode/
+.idea/
+.DS_Store
