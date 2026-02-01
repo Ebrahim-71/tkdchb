@@ -481,8 +481,11 @@ class PendingSingleApproveMixin:
 class PendingCoachAdmin(PendingRejectWithSmsMixin, PendingSingleApproveMixin, admin.ModelAdmin):
     form = PendingUserProfileAdminFormWithJalali
     list_display = ['first_name', 'last_name', 'phone', 'submitted_at']
+    search_fields = ('first_name', 'last_name', 'phone', 'national_code')
+    list_filter = ('gender',)  # ✅ فیلتر جنسیت
     actions = ['approve', 'reject_selected_with_sms']
     change_form_template = "admin/accounts/pendinguserprofile/change_form.html"
+
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -537,8 +540,11 @@ class PendingCoachAdmin(PendingRejectWithSmsMixin, PendingSingleApproveMixin, ad
 # -------------------------------
 class PendingRefereeAdmin(PendingRejectWithSmsMixin, PendingSingleApproveMixin, admin.ModelAdmin):
     list_display = ['first_name', 'last_name', 'phone', 'submitted_at']
+    search_fields = ('first_name', 'last_name', 'phone', 'national_code')
+    list_filter = ('gender',)  # ✅ فیلتر جنسیت
     actions = ['approve', 'reject_selected_with_sms']
     change_form_template = "admin/accounts/pendinguserprofile/change_form.html"
+
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -590,8 +596,11 @@ class PendingRefereeAdmin(PendingRejectWithSmsMixin, PendingSingleApproveMixin, 
 class PendingPlayerAdmin(PendingRejectWithSmsMixin, PendingSingleApproveMixin, admin.ModelAdmin):
     form = PendingUserProfileAdminFormWithJalali
     list_display = ['first_name', 'last_name', 'coach_display', 'phone', 'submitted_at']
+    search_fields = ('first_name', 'last_name', 'phone', 'national_code')
+    list_filter = ('gender',)  # ✅ فیلتر جنسیت
     actions = ['approve', 'reject_selected_with_sms']
     change_form_template = "admin/accounts/pendinguserprofile/change_form.html"
+
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(role='player')
@@ -648,6 +657,8 @@ class ApprovedCoachAdmin(SafeDeleteAdminMixin, admin.ModelAdmin):
     form = UserProfileAdminFormWithJalali
     list_display = ['first_name', 'last_name', 'phone', 'national_code']
     search_fields = ('first_name', 'last_name', 'phone', 'national_code')
+    list_filter = ('gender',)
+
     def get_queryset(self, request):
         return super().get_queryset(request).filter(is_coach=True)
 
@@ -656,17 +667,22 @@ class ApprovedRefereeAdmin(SafeDeleteAdminMixin, admin.ModelAdmin):
     form = UserProfileAdminFormWithJalali
     list_display = ['first_name', 'last_name', 'phone', 'national_code']
     search_fields = ('first_name', 'last_name', 'phone', 'national_code')
+    list_filter = ('gender',)
+
     def get_queryset(self, request):
         return super().get_queryset(request).filter(is_referee=True)
+
 
 
 class ApprovedPlayerAdmin(SafeDeleteAdminMixin, admin.ModelAdmin):
     form = UserProfileAdminFormWithJalali
     list_display = ['first_name', 'last_name','coach_display', 'phone', 'national_code']
     search_fields = ('first_name', 'last_name', 'phone', 'national_code')
+    list_filter = ('gender',)
 
     def get_queryset(self, request):
         return super().get_queryset(request).filter(role='player')
+
 
     def coach_display(self, obj):
         if getattr(obj, "coach", None):
@@ -683,9 +699,13 @@ class ApprovedPlayerAdmin(SafeDeleteAdminMixin, admin.ModelAdmin):
 # -------------------------------
 class UserProfileAdmin(SafeDeleteAdminMixin, admin.ModelAdmin):
     form = UserProfileAdminFormWithJalali
-    list_display = ['first_name', 'last_name', 'phone', 'role',
-                    'display_coach_level', 'display_coach_level_International']
+    list_display = [
+        'first_name', 'last_name', 'phone', 'role',
+        'display_coach_level', 'display_coach_level_International'
+    ]
     search_fields = ['first_name', 'last_name', 'phone', 'national_code']
+    list_filter = ('gender', 'role')
+
 
     def display_coach_level(self, obj):
         return obj.get_coach_level_display() or '-'
