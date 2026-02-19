@@ -394,6 +394,10 @@ def approve_pending_user(request, pk):
     raw_pass = _normalize_digits(pending.national_code)
 
     coach_instance = UserProfile.objects.filter(id=pending.coach_id).first() if pending.coach_id else None
+    # ✅ جلوگیری از coach=self بعد از تایید
+    if coach_instance and _normalize_digits(coach_instance.national_code) == _normalize_digits(pending.national_code):
+        coach_instance = None
+
     is_coach = pending.role in ['coach', 'both']
     is_referee = pending.role in ['referee', 'both']
 
@@ -446,9 +450,12 @@ class RegisterPlayerAPIView(APIView):
         coach_id = data.get('coach')
         if coach_id and coach_id != "other":
             try:
-                data['coach'] = int(coach_id)
+                cid = int(coach_id)
+                # اگر کاربر با همین phone/national_code بعداً تایید شود، در approve هم کنترل می‌کنیم.
+                data['coach'] = cid
             except ValueError:
                 data['coach'] = None
+
 
         serializer = PendingPlayerSerializer(data=data, context={'request': request})
         if serializer.is_valid():
@@ -788,105 +795,189 @@ def user_profile_with_form_data_view(request):
     })
 
 
+
+logger = logging.getLogger(__name__)
+
+
 class UpdateProfilePendingAPIView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
 
+    def _is_junk_str(self, v):
+        return isinstance(v, str) and v.strip().lower() in ("", "null", "none", "undefined")
+
+    def _parse_json_maybe(self, v, default):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return default
+        return v if v is not None else default
+
     def post(self, request):
-        user = request.user
+        # -----------------------
+        # load original profile
+        # -----------------------
         try:
-            original = user.profile
-        except UserProfile.DoesNotExist:
+            original = request.user.profile
+        except Exception:
             return Response({"error": "پروفایل یافت نشد."}, status=404)
 
         data = request.data.copy()
 
-        try:
-            referee_raw = data.get('refereeTypes')
-            if referee_raw and isinstance(referee_raw, str):
-                data['refereeTypes'] = json.loads(referee_raw)
-        except Exception:
-            data['refereeTypes'] = {}
+        # -----------------------
+        # profile_image: فقط اگر فایل واقعی آمده باشد
+        # -----------------------
+        if "profile_image" not in request.FILES:
+            data.pop("profile_image", None)
+        else:
+            # اگر برخی فرانت‌ها همزمان string هم می‌فرستن، پاکش کن تا فایل بماند
+            if self._is_junk_str(data.get("profile_image")):
+                data.pop("profile_image", None)
 
-        try:
-            if isinstance(data.get('selectedClubs'), str):
-                data['selectedClubs'] = json.loads(data['selectedClubs'])
-        except Exception:
-            data['selectedClubs'] = []
+        # -----------------------
+        # refereeTypes (string->dict)
+        # -----------------------
+        referee_types = self._parse_json_maybe(data.get("refereeTypes"), default={})
+        if not isinstance(referee_types, dict):
+            referee_types = {}
+        data["refereeTypes"] = referee_types
 
-        if data.get('coachGradeNational'):
-            data['coach_level'] = data['coachGradeNational']
-        if data.get('coachGradeIntl'):
-            data['coach_level_International'] = data['coachGradeIntl']
+        # -----------------------
+        # selected clubs:
+        # - پشتیبانی از selectedClubs[] (form)
+        # - یا selectedClubs (json string)
+        # -----------------------
+        clubs = []
+        if hasattr(request.data, "getlist"):
+            clubs = request.data.getlist("selectedClubs[]") or []
 
-        referee_types = data.get('refereeTypes', {})
-        for field in ['kyorogi', 'poomseh', 'hanmadang']:
-            selected = referee_types.get(field, {}).get('selected', False)
-            data[field] = bool(selected)
+        if not clubs:
+            clubs_raw = data.get("selectedClubs")
+            parsed = self._parse_json_maybe(clubs_raw, default=[])
+            if isinstance(parsed, (list, tuple)):
+                clubs = list(parsed)
+
+        # normalize -> int list
+        club_ids = [int(x) for x in clubs if str(x).isdigit()]
+        # ⚠️ این فیلد احتمالاً توی مدل PendingEditProfile نیست؛ برای serializer نفرست
+        data.pop("selectedClubs", None)
+
+        # -----------------------
+        # coach levels mapping
+        # -----------------------
+        if data.get("coachGradeNational"):
+            data["coach_level"] = data.get("coachGradeNational")
+        if data.get("coachGradeIntl"):
+            data["coach_level_International"] = data.get("coachGradeIntl")
+
+        # -----------------------
+        # extract referee flags + levels from refereeTypes
+        # -----------------------
+        for field in ["kyorogi", "poomseh", "hanmadang"]:
+            selected = bool((referee_types.get(field) or {}).get("selected", False))
+            data[field] = selected
             if selected:
-                data[f"{field}_level"] = referee_types[field].get('gradeNational') or None
-                data[f"{field}_level_International"] = referee_types[field].get('gradeIntl') or None
+                data[f"{field}_level"] = (referee_types.get(field) or {}).get("gradeNational") or None
+                data[f"{field}_level_International"] = (referee_types.get(field) or {}).get("gradeIntl") or None
+            else:
+                # اگر انتخاب نشده، level ها را پاک کن تا diff درست باشد
+                data[f"{field}_level"] = None
+                data[f"{field}_level_International"] = None
 
+        # -----------------------
+        # coach (FK)
+        # -----------------------
+        coach_id = data.get("coach")
+        if coach_id == "other" or self._is_junk_str(coach_id):
+            data["coach"] = None
+        elif coach_id and str(coach_id).isdigit():
+            data["coach"] = int(coach_id)
+        else:
+            # اگر چیزی نامعتبر است، حذفش کن تا serializer گیر ندهد
+            data.pop("coach", None)
+
+        # -----------------------
+        # upsert pending
+        # -----------------------
         existing = PendingEditProfile.objects.filter(original_user=original).first()
-        serializer = (
-            PendingEditProfileSerializer(existing, data=data, context={'request': request})
-            if existing else
-            PendingEditProfileSerializer(data=data, context={'request': request})
+        serializer = PendingEditProfileSerializer(
+            existing, data=data, partial=True, context={"request": request}
+        ) if existing else PendingEditProfileSerializer(
+            data=data, context={"request": request}
         )
 
         if not serializer.is_valid():
-            return Response({'status': 'error', 'errors': serializer.errors}, status=400)
+            return Response({"status": "error", "errors": serializer.errors}, status=400)
 
         pending = serializer.save(original_user=original)
 
-        coach_id = data.get('coach')
-        if coach_id and coach_id != "other":
+        # -----------------------
+        # validate/assign coach instance + prevent coach=self
+        # -----------------------
+        if coach_id and str(coach_id).isdigit():
             try:
-                coach = UserProfile.objects.get(id=int(coach_id))
-                if coach.phone == original.phone:
-                    return Response({'status': 'error', 'message': 'مربی نمی‌تواند خودش باشد.'}, status=400)
-                pending.coach = coach
-                pending.coach_name = f"{coach.first_name} {coach.last_name}"
-            except Exception:
-                pass
+                coach_obj = UserProfile.objects.get(id=int(coach_id))
+                if coach_obj.phone == original.phone:
+                    return Response({"status": "error", "message": "مربی نمی‌تواند خودش باشد."}, status=400)
+                pending.coach = coach_obj
+                pending.coach_name = f"{coach_obj.first_name} {coach_obj.last_name}".strip()
+            except UserProfile.DoesNotExist:
+                # مربی نامعتبر → پاک
+                pending.coach = None
 
+        # -----------------------
+        # set M2M coaching_clubs
+        # -----------------------
+        if hasattr(pending, "coaching_clubs"):
+            pending.coaching_clubs.set(club_ids)
+
+        # -----------------------
+        # club_names + default club انتخابی
+        # -----------------------
         club_names = []
-        clubs = data.get('selectedClubs', [])
-        if clubs:
-            pending.coaching_clubs.set(clubs)
-            club_names += list(TkdClub.objects.filter(id__in=clubs).values_list('club_name', flat=True))
+        if club_ids:
+            club_names = list(
+                TkdClub.objects.filter(id__in=club_ids).values_list("club_name", flat=True)
+            )
 
-        club_id = data.get('club')
-        if club_id:
+        club_id = data.get("club")
+        if club_id and str(club_id).isdigit():
             try:
                 pending.club = TkdClub.objects.get(id=int(club_id))
-                if pending.club.club_name not in club_names:
+                if pending.club and pending.club.club_name not in club_names:
                     club_names.append(pending.club.club_name)
-            except Exception:
+            except TkdClub.DoesNotExist:
                 pass
-        elif clubs:
+        elif club_ids:
             try:
-                pending.club = TkdClub.objects.get(id=clubs[0])
-            except Exception:
+                pending.club = TkdClub.objects.get(id=club_ids[0])
+            except TkdClub.DoesNotExist:
                 pass
 
         pending.club_names = club_names
 
-        if pending.is_coach and pending.is_referee:
-            pending.role = 'both'
-        elif pending.is_coach:
-            pending.role = 'coach'
-        elif pending.is_referee:
-            pending.role = 'referee'
+        # -----------------------
+        # derive role based on flags (optional)
+        # -----------------------
+        if getattr(pending, "is_coach", False) and getattr(pending, "is_referee", False):
+            pending.role = "both"
+        elif getattr(pending, "is_coach", False):
+            pending.role = "coach"
+        elif getattr(pending, "is_referee", False):
+            pending.role = "referee"
         else:
-            pending.role = 'player'
+            pending.role = "player"
 
         if pending.tkd_board:
             pending.tkd_board_name = pending.tkd_board.name
 
         pending.save()
-        return Response({'status': 'ok', 'message': 'درخواست ویرایش شما ثبت و در انتظار تایید است.'}, status=200)
 
+        return Response(
+            {"status": "ok", "message": "درخواست ویرایش شما ثبت و در انتظار تایید است."},
+            status=200
+        )
 
 @staff_member_required
 def approve_edited_profile(request, pk):
@@ -945,7 +1036,9 @@ class CoachStudentsAPIView(APIView):
         if not coach_profile.is_coach:
             return Response({"error": "فقط مربیان به این بخش دسترسی دارند."}, status=403)
 
-        students = UserProfile.objects.filter(coach=coach_profile, role="player")
+        # ✅ هر نقشی (player/coach/referee/both) اگر coach این مربی باشد نمایش داده شود
+        # ✅ خود مربی حتی اگر coach خودش را خودش زده باشد، در لیست خودش نمایش داده نشود
+        students = UserProfile.objects.filter(coach=coach_profile).exclude(pk=coach_profile.pk)
 
         club = request.GET.get("club")
         if club and club != "باشگاه":

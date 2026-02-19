@@ -11,6 +11,12 @@ from typing import Optional
 # ← ویجت شمسی
 from common.widgets import PersianDateWidget
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+from django.core.serializers.json import DjangoJSONEncoder
+
+import logging
+
+import json
+from django.utils.safestring import mark_safe
 
 from .models import (
     ApprovedCoach, ApprovedPlayer, ApprovedReferee,
@@ -26,7 +32,67 @@ UserModel = get_user_model()
 # -------------------------------
 # Helperها
 # -------------------------------
-# --- بالاى فایل، بعد از importها اضافه کن:
+
+logger = logging.getLogger(__name__)
+
+def _safe_file_info(obj, field_name: str):
+    f = getattr(obj, field_name, None)
+    if not f:
+        return None
+
+    name = ""
+    url = None
+    size = None
+
+    try:
+        name = getattr(f, "name", "") or ""
+    except Exception:
+        name = ""
+
+    try:
+        url = f.url
+    except Exception:
+        url = None
+
+    try:
+        size = f.size
+    except Exception:
+        size = None
+
+    if not name and not url:
+        return None
+
+    return {"url": url, "name": name, "size": size}
+
+def _resolve_original_profile(pending_obj):
+    """
+    pending_obj.original_user ممکنه UserProfile یا auth.User باشه.
+    خروجی: UserProfile یا None
+    """
+    o = getattr(pending_obj, "original_user", None)
+    if o is None:
+        return None
+
+    # اگر خودش UserProfile است
+    if isinstance(o, UserProfile):
+        return o
+
+    # اگر auth.User است و reverse relation دارد
+    up = getattr(o, "userprofile", None)
+    if isinstance(up, UserProfile):
+        return up
+
+    # اگر هیچکدوم نبود، تلاش با query
+    try:
+        return UserProfile.objects.filter(user=o).first()
+    except Exception:
+        return None
+
+
+
+
+
+
 
 # اعداد فارسی→لاتین
 def _fa2en(s: str) -> str:
@@ -869,79 +935,218 @@ class PendingClubAdmin(PendingRejectWithSmsMixin, PendingSingleApproveMixin, adm
         self.message_user(request, msg)
 
 
-# -------------------------------
-# PendingEditProfile (فقط اعمال ویرایش؛ User نمی‌سازد)
-# -------------------------------
+
+
+def _file_url(obj, field_name: str):
+    f = getattr(obj, field_name, None)
+    if not f:
+        return None
+    try:
+        if getattr(f, "name", None):
+            return f.url
+    except Exception:
+        return None
+    return None
+
+
+def _fa_bool(v):
+    return "بله" if bool(v) else "خیر"
+
+
+def _norm_text(v):
+    if v is None:
+        return ""
+    return str(v).strip()
+
+
 class PendingEditsAdmin(PendingSingleApproveMixin, admin.ModelAdmin):
-    list_display = ['first_name', 'last_name', 'phone', 'role']
-    actions = ['approve']
+    list_display = ("first_name", "last_name", "phone", "role")
+    actions = ("approve",)
     change_form_template = "admin/accounts/pendinguserprofile/approve_edited_profile.html"
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).filter(original_user__isnull=False)
+    DIFF_FIELDS = [
+        "first_name", "last_name", "father_name",
+        "birth_date", "gender",
+        "province", "county", "city", "address",
+        "role", "is_coach", "is_referee",
+        "coach_level", "coach_level_International",
+        "kyorogi", "kyorogi_level", "kyorogi_level_International",
+        "poomseh", "poomseh_level", "poomseh_level_International",
+        "hanmadang", "hanmadang_level", "hanmadang_level_International",
+        "belt_grade", "belt_certificate_number", "belt_certificate_date",
+        "tkd_board", "club", "coach",
+        "profile_image",
+    ]
 
-    def approve(self, request, queryset):
-        success_count = 0
-        delete_failed = 0
+    def _label(self, obj, field_name: str) -> str:
+        try:
+            f = obj._meta.get_field(field_name)
+            return str(getattr(f, "verbose_name", field_name)) or field_name
+        except Exception:
+            return field_name
 
-        # برای جلوگیری از خطای عجیب، همه چیز را شفاف select_related کنیم
-        qs = queryset.select_related("original_user").prefetch_related("coaching_clubs")
+    def _pretty(self, obj, field_name: str, value):
+        if field_name in ("is_coach", "is_referee", "kyorogi", "poomseh", "hanmadang"):
+            return _fa_bool(value)
 
-        for pending in qs:
-            user = pending.original_user
-            if not user:
+        disp = getattr(obj, f"get_{field_name}_display", None)
+        if callable(disp):
+            try:
+                out = _norm_text(disp())
+                return out if out else "ندارد"
+            except Exception:
+                pass
+
+        if field_name in ("tkd_board", "club", "coach"):
+            if not value:
+                return "ندارد"
+            try:
+                return _norm_text(str(value)) or "ندارد"
+            except Exception:
+                return "ندارد"
+
+        if field_name in ("birth_date", "belt_certificate_date"):
+            return _norm_text(value) if _norm_text(value) else "ندارد"
+
+        return _norm_text(value) if _norm_text(value) else "ندارد"
+
+    def _build_diff(self, pending_obj):
+        original = _resolve_original_profile(pending_obj)
+        if not original:
+            return [], {}
+
+        changed_fields = []
+        pairs = {}
+
+        # --- m2m coaching_clubs ---
+        try:
+            if hasattr(original, "coaching_clubs") and hasattr(pending_obj, "coaching_clubs"):
+                old_ids = list(original.coaching_clubs.all().values_list("id", flat=True))
+                new_ids = list(pending_obj.coaching_clubs.all().values_list("id", flat=True))
+                if sorted(old_ids) != sorted(new_ids):
+                    changed_fields.append("coaching_clubs")
+                    pairs["coaching_clubs"] = {
+                        "label": "باشگاه‌های مربی",
+                        "type": "text",
+                        "old": "، ".join([str(x) for x in original.coaching_clubs.all()]) or "ندارد",
+                        "new": "، ".join([str(x) for x in pending_obj.coaching_clubs.all()]) or "ندارد",
+                    }
+        except Exception as e:
+            logger.exception("diff coaching_clubs failed: %s", e)
+
+        # --- image profile_image ---
+        try:
+            old_img = _safe_file_info(original, "profile_image")
+            new_img = _safe_file_info(pending_obj, "profile_image")
+            
+            old_sig = (
+                (old_img or {}).get("name") or "",
+                (old_img or {}).get("size"),
+            )
+            new_sig = (
+                (new_img or {}).get("name") or "",
+                (new_img or {}).get("size"),
+            )
+            
+            if old_sig != new_sig:
+                changed_fields.append("profile_image")
+                pairs["profile_image"] = {
+                    "label": self._label(pending_obj, "profile_image"),
+                    "type": "image",
+                    "old": old_img,
+                    "new": new_img,
+                }
+
+
+        
+        except Exception as e:
+            logger.exception("diff profile_image failed: %s", e)
+
+        # --- سایر فیلدها ---
+        for field_name in self.DIFF_FIELDS:
+            if field_name == "profile_image":
+                continue
+
+            if not hasattr(original, field_name) or not hasattr(pending_obj, field_name):
                 continue
 
             try:
-                # فیلدهایی که می‌خواهیم از پندینگ منتقل شود
-                fields_to_copy = [
-                    'first_name', 'last_name', 'father_name',
-                    'national_code', 'phone', 'birth_date',
-                    'role', 'gender',
-                    'address', 'province', 'county', 'city',
-                    'belt_grade', 'belt_certificate_number', 'belt_certificate_date',
-                    'coach', 'coach_name', 'club', 'club_names',
-                    'tkd_board', 'tkd_board_name',
-                    'coach_level', 'coach_level_International',
-                    'kyorogi', 'kyorogi_level', 'kyorogi_level_International',
-                    'poomseh', 'poomseh_level', 'poomseh_level_International',
-                    'hanmadang', 'hanmadang_level', 'hanmadang_level_International',
-                    'is_coach', 'is_referee',
-                ]
+                old_val = getattr(original, field_name, None)
+                new_val = getattr(pending_obj, field_name, None)
 
-                for field in fields_to_copy:
-                    setattr(user, field, getattr(pending, field))
+                old_pretty = self._pretty(original, field_name, old_val)
+                new_pretty = self._pretty(pending_obj, field_name, new_val)
 
-                # باشگاه‌های تحت مربیگری — حتی اگر خالی باشد باید ست شود
-                if hasattr(user, "coaching_clubs") and hasattr(pending, "coaching_clubs"):
-                    user.coaching_clubs.set(pending.coaching_clubs.all())
-
-                # اگر عکس جدید آپلود شده بود، عکس را عوض کن
-                if pending.profile_image:
-                    user.profile_image = pending.profile_image
-
-                user.save()
-
-                # حذف رکورد پندینگ
-                if safe_delete_pending(self, request, pending):
-                    success_count += 1
-                else:
-                    delete_failed += 1
-
+                if _norm_text(old_pretty) != _norm_text(new_pretty):
+                    changed_fields.append(field_name)
+                    pairs[field_name] = {
+                        "label": self._label(pending_obj, field_name),
+                        "type": "text",
+                        "old": old_pretty,
+                        "new": new_pretty,
+                    }
             except Exception as e:
-                delete_failed += 1
-                self.message_user(
-                    request,
-                    f"خطا هنگام اعمال ویرایش برای «{pending}»: {e}",
-                    level=messages.ERROR,
-                )
+                logger.exception("diff field %s failed: %s", field_name, e)
 
-        msg = f"{success_count} ویرایش با موفقیت اعمال شد."
-        if delete_failed:
-            msg += f" {delete_failed} مورد به علت خطا یا وابستگی حذف/اعمال نشد."
-        self.message_user(request, msg, level=messages.INFO)
+        return changed_fields, pairs
 
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        obj = self.get_object(request, object_id)
 
+        changed_fields, pairs = ([], {})
+        if obj:
+            try:
+                changed_fields, pairs = self._build_diff(obj)
+            except Exception as e:
+                logger.exception("build_diff crashed: %s", e)
+                changed_fields, pairs = [], {}
+
+        extra_context["tkd_changed_fields"] = changed_fields
+        extra_context["tkd_pairs"] = pairs
+
+        # مهم: برای json_script باید dict باشه
+        extra_context["tkd_diff_json"] = {"changed_fields": changed_fields, "pairs": pairs}
+
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    @admin.action(description="اعمال ویرایش موارد انتخاب‌شده")
+    def approve(self, request, queryset):
+        success, failed = 0, 0
+        qs = queryset.select_related("original_user").prefetch_related("coaching_clubs")
+
+        with transaction.atomic():
+            for pending in qs:
+                # ✅ حتماً پروفایل اصلی را resolve کن
+                user_profile = _resolve_original_profile(pending)
+                if not user_profile:
+                    failed += 1
+                    continue
+
+                try:
+                    for fname in self.DIFF_FIELDS:
+                        if fname == "profile_image":
+                            continue
+                        if hasattr(pending, fname):
+                            setattr(user_profile, fname, getattr(pending, fname))
+
+                    if hasattr(user_profile, "coaching_clubs") and hasattr(pending, "coaching_clubs"):
+                        user_profile.coaching_clubs.set(pending.coaching_clubs.all())
+
+                    if getattr(pending, "profile_image", None):
+                        user_profile.profile_image = pending.profile_image
+
+                    user_profile.save()
+                    pending.delete()
+                    success += 1
+                except Exception as e:
+                    failed += 1
+                    self.message_user(request, f"خطا در اعمال ویرایش برای «{pending}»: {e}", level=messages.ERROR)
+
+        msg = f"{success} مورد اعمال شد."
+        if failed:
+            msg += f" {failed} مورد ناموفق بود."
+        self.message_user(request, msg, level=messages.SUCCESS if success else messages.WARNING)
 # -------------------------------
 # TkdBoard (با فرم ساخت/ویرایش یوزر)
 # -------------------------------

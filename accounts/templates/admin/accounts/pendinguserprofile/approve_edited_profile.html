@@ -1,9 +1,11 @@
 {% extends "admin/change_form.html" %}
-{% load admin_urls i18n %}
+{% load i18n admin_urls %}
 
 {% block extrahead %}
   {{ block.super }}
+
   <style>
+    /* ---- Approve Button ---- */
     .tkd-approve-btn{
       background:#dc3545;
       color:#fff!important;
@@ -11,19 +13,132 @@
       border-radius:6px;
       text-decoration:none;
       display:inline-block;
-      font-weight:700;
+      font-weight:800;
       margin:10px 0;
       border:0;
       cursor:pointer;
     }
-    .tkd-approve-btn:hover{
-      background:#bb2d3b;
+    .tkd-approve-btn:hover{ background:#bb2d3b; }
+    .tkd-approve-wrap{ display:flex; gap:.5rem; align-items:center; }
+
+    /* ---- Changed field highlight ---- */
+    .tkd-changed-row{
+      border: 2px solid #ff9f1a;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #fffbea;
     }
-    .tkd-approve-wrap{
-      display:flex;
-      gap:.5rem;
+    .tkd-changed-badge{
+      display:inline-flex;
       align-items:center;
+      gap:6px;
+      background:#ff9f1a;
+      color:#111;
+      font-weight:900;
+      padding:3px 10px;
+      border-radius:999px;
+      font-size:12px;
+      margin-bottom:8px;
     }
+    .tkd-mini-diff{
+      margin-top:8px;
+      border:1px dashed #ffb84d;
+      background:#fff;
+      padding:8px 10px;
+      border-radius:8px;
+      font-size:13px;
+      line-height:1.8;
+    }
+    .tkd-old{ color:#c0392b; font-weight:800; }
+    .tkd-new{ color:#148f2b; font-weight:900; }
+    .tkd-muted{
+      margin-top:6px;
+      color:#666;
+      font-size:12px;
+      direction:ltr;
+      word-break: break-all;
+    }
+
+    /* --- Lightbox --- */
+    .tkd-lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.65);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+      padding: 20px;
+    }
+    .tkd-lightbox.is-open { display: flex; }
+
+    .tkd-lightbox__panel {
+      width: min(980px, 96vw);
+      max-height: 92vh;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+      display: flex;
+      flex-direction: column;
+    }
+    .tkd-lightbox__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border-bottom: 1px solid #eee;
+      background: #fafafa;
+    }
+    .tkd-lightbox__title { font-weight: 900; font-size: 14px; }
+    .tkd-lightbox__actions { display:flex; gap:8px; align-items:center; }
+    .tkd-lightbox__btn {
+      border: 0;
+      background: #dc3545;
+      color: #fff;
+      font-weight: 900;
+      padding: 7px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .tkd-lightbox__btn:hover { background:#bb2d3b; }
+    .tkd-lightbox__link {
+      color: #0d6efd;
+      text-decoration: underline;
+      font-weight: 800;
+      font-size: 13px;
+    }
+    .tkd-lightbox__body {
+      padding: 12px;
+      overflow: auto;
+      background: #fff;
+    }
+    .tkd-lightbox__img {
+      width: 100%;
+      height: auto;
+      max-height: 75vh;
+      object-fit: contain;
+      display: block;
+      background: #fff;
+    }
+
+    /* ---- Summary ---- */
+    .tkd-summary{
+      margin: 12px 0;
+      padding: 10px 12px;
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      background: #f7f7f7;
+    }
+    .tkd-summary h3{
+      margin:0 0 8px 0;
+      font-size: 14px;
+      font-weight: 900;
+    }
+    .tkd-summary ul{ margin:0; padding-right: 20px; }
+    .tkd-summary li{ margin: 2px 0; }
+    .tkd-summary .tkd-empty{ color:#666; font-size: 13px; margin:0; }
   </style>
 {% endblock %}
 
@@ -32,7 +147,6 @@
   {{ block.super }}
   {% if original and original.pk %}
     <div class="tkd-approve-wrap">
-      {# این دکمه داخل فرم اصلی ادمین است، نه فرم جدا #}
       <button type="submit" name="_approve" class="tkd-approve-btn">
         تایید و اعمال ویرایش
       </button>
@@ -40,7 +154,7 @@
   {% endif %}
 {% endblock %}
 
-{# دکمه پایین فرم (اختیاری – اگر نمی‌خوای دوبار نمایش داده بشه، این بلوک رو کامل حذف کن) #}
+{# دکمه پایین فرم #}
 {% block submit_buttons_bottom %}
   {{ block.super }}
   {% if original and original.pk %}
@@ -50,4 +164,198 @@
       </button>
     </div>
   {% endif %}
+{% endblock %}
+
+{% block content %}
+
+  {# ✅ diff را امن داخل DOM می‌گذاریم (به جای inject مستقیم در JS) #}
+  {% if tkd_diff_json %}
+    {{ tkd_diff_json|json_script:"tkd-diff" }}
+  {% endif %}
+
+  {# خلاصه‌ی فیلدهای تغییر کرده (بالای فرم) — توسط JS پر می‌شود #}
+  <div id="tkdSummary" class="tkd-summary" style="display:none;">
+    <h3>فیلدهای تغییر کرده</h3>
+    <ul id="tkdSummaryList"></ul>
+    <p id="tkdSummaryEmpty" class="tkd-empty" style="display:none;">هیچ تغییری تشخیص داده نشد.</p>
+  </div>
+
+  {{ block.super }}
+
+  {# Lightbox Modal #}
+  <div id="tkdLightbox" class="tkd-lightbox" aria-hidden="true">
+    <div class="tkd-lightbox__panel" role="dialog" aria-modal="true">
+      <div class="tkd-lightbox__header">
+        <div id="tkdLightboxTitle" class="tkd-lightbox__title">مشاهده تصویر</div>
+        <div class="tkd-lightbox__actions">
+          <a id="tkdLightboxOpenNew" class="tkd-lightbox__link" href="#" target="_blank" rel="noopener">
+            باز کردن در تب جدید
+          </a>
+          <button type="button" id="tkdLightboxClose" class="tkd-lightbox__btn">بستن ✕</button>
+        </div>
+      </div>
+      <div class="tkd-lightbox__body">
+        <img id="tkdLightboxImg" class="tkd-lightbox__img" src="" alt="preview" />
+        <div id="tkdLightboxPath" class="tkd-muted"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      // ✅ امن: JSON را از script tag می‌خوانیم
+      const diffEl = document.getElementById("tkd-diff");
+      const DIFF = diffEl ? JSON.parse(diffEl.textContent) : null;
+      if (!DIFF || !DIFF.pairs) return;
+
+      function escapeHtml(s){
+        return String(s ?? "")
+          .replaceAll("&","&amp;")
+          .replaceAll("<","&lt;")
+          .replaceAll(">","&gt;")
+          .replaceAll('"',"&quot;")
+          .replaceAll("'","&#039;");
+      }
+
+      // -------------------------------
+      // Summary (بالای فرم)
+      // -------------------------------
+      const summaryBox = document.getElementById("tkdSummary");
+      const summaryList = document.getElementById("tkdSummaryList");
+      const summaryEmpty = document.getElementById("tkdSummaryEmpty");
+
+      if (summaryBox && summaryList) {
+        const keys = Object.keys(DIFF.pairs || {});
+        summaryBox.style.display = "block";
+
+        if (!keys.length) {
+          summaryEmpty && (summaryEmpty.style.display = "block");
+        } else {
+          keys.forEach(function(k){
+            const p = DIFF.pairs[k] || {};
+            const li = document.createElement("li");
+            // اگر label هست، همان؛ وگرنه نام فیلد
+            li.textContent = (p.label || k);
+            summaryList.appendChild(li);
+          });
+        }
+      }
+
+      // -------------------------------
+      // Lightbox
+      // -------------------------------
+      const lb = document.getElementById("tkdLightbox");
+      const lbImg = document.getElementById("tkdLightboxImg");
+      const lbPath = document.getElementById("tkdLightboxPath");
+      const lbClose = document.getElementById("tkdLightboxClose");
+      const lbNewTab = document.getElementById("tkdLightboxOpenNew");
+
+      function openLightbox(url, label){
+        if (!url) return;
+        lbImg.src = url;
+        lbPath.textContent = label ? label : "";
+        lbNewTab.href = url;
+        lb.classList.add("is-open");
+        lb.setAttribute("aria-hidden", "false");
+      }
+      function closeLightbox(){
+        lb.classList.remove("is-open");
+        lb.setAttribute("aria-hidden", "true");
+        lbImg.src = "";
+        lbNewTab.href = "#";
+      }
+      lbClose && lbClose.addEventListener("click", closeLightbox);
+      lb && lb.addEventListener("click", function(e){
+        if (e.target === lb) closeLightbox();
+      });
+      document.addEventListener("keydown", function(e){
+        if (e.key === "Escape" && lb.classList.contains("is-open")) closeLightbox();
+      });
+
+      // -------------------------------
+      // Render before/after for each changed field
+      // -------------------------------
+      function renderValue(p, v, cls){
+        // ✅ پوشش خالی/تهی
+        if (v === null || v === undefined || v === "") {
+          return "<span class='"+cls+"'>ندارد</span>";
+        }
+
+        if (p.type === "image") {
+          // انتظار داریم v = {url, label|name}
+          const url = v.url;
+          const label = v.label || v.name || "";
+          if (url) {
+            return `
+              <a href="${escapeHtml(url)}"
+                 class="${cls} tkd-img-link"
+                 data-img-url="${escapeHtml(url)}"
+                 data-img-label="${escapeHtml(label)}"
+                 style="font-weight:900;text-decoration:underline">
+                🔍 مشاهده تصویر
+              </a>
+              <div class="tkd-muted">${escapeHtml(label)}</div>
+            `;
+          }
+          return "<span class='"+cls+"'>ندارد</span>";
+        }
+
+        return "<span class='"+cls+"'>" + escapeHtml(v) + "</span>";
+      }
+
+      // کلیک روی لینک تصویر
+      document.addEventListener("click", function(e){
+        const a = e.target.closest(".tkd-img-link");
+        if (!a) return;
+        e.preventDefault();
+        openLightbox(a.getAttribute("data-img-url"), a.getAttribute("data-img-label"));
+      });
+
+      // پیدا کردن row مربوط به هر فیلد و تزریق UI
+      Object.keys(DIFF.pairs).forEach(function(fieldName){
+        const p = DIFF.pairs[fieldName] || {};
+
+        // input/select/textarea با id استاندارد Django admin
+        const input = document.getElementById("id_" + fieldName);
+
+        // بعضی فیلدها مثل m2m ممکنه select multiple داشته باشند
+        // اگر نبود، تلاش دوم: name-based
+        let el = input;
+        if (!el) {
+          try {
+            el = document.querySelector("[name='" + CSS.escape(fieldName) + "']");
+          } catch (err) {
+            // اگر CSS.escape در مرورگر/تم مشکل داشت
+            el = document.querySelector("[name='" + fieldName.replaceAll("'", "\\'") + "']");
+          }
+        }
+        if (!el) return;
+
+        // ✅ ردیف container (پایدارتر)
+        const row =
+          el.closest(".form-row") ||
+          el.closest(".fieldBox") ||
+          el.closest(".field-" + (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(fieldName) : fieldName));
+        if (!row) return;
+
+        row.classList.add("tkd-changed-row");
+
+        // badge
+        const badge = document.createElement("div");
+        badge.className = "tkd-changed-badge";
+        badge.innerHTML = "✳️ تغییر کرده";
+        row.insertBefore(badge, row.firstChild);
+
+        // diff box
+        const mini = document.createElement("div");
+        mini.className = "tkd-mini-diff";
+        mini.innerHTML =
+          "<div><b>قبل ویرایش:</b> " + renderValue(p, p.old, "tkd-old") + "</div>" +
+          "<div><b>بعد ویرایش:</b> " + renderValue(p, p.new, "tkd-new") + "</div>";
+        row.appendChild(mini);
+      });
+
+    })();
+  </script>
+
 {% endblock %}

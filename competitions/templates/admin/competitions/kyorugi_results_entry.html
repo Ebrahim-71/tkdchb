@@ -1,0 +1,178 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div class="content">
+
+  <h1>{{ title }}</h1>
+
+  {# ===================== فرم فیلتر (GET) ===================== #}
+  <form method="get" id="filters-form" style="margin-bottom: 16px;">
+    <fieldset class="module aligned">
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.gender.id_for_label }}">{{ form.gender.label }}</label>
+          {{ form.gender }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.only_upcoming.id_for_label }}">{{ form.only_upcoming.label }}</label>
+          {{ form.only_upcoming }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.competition.id_for_label }}">{{ form.competition.label }}</label>
+          {{ form.competition }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.weight_category.id_for_label }}">{{ form.weight_category.label }}</label>
+          {{ form.weight_category }}
+        </div>
+      </div>
+
+    </fieldset>
+
+    <div class="submit-row">
+      <input type="submit" class="default" value="اعمال فیلتر / بارگذاری بازیکنان">
+    </div>
+  </form>
+
+  {# ===================== فرم ذخیره نتیجه (POST) ===================== #}
+  <form method="post" id="result-form">
+    {% csrf_token %}
+
+    {# حفظ فیلترها هنگام POST #}
+    <input type="hidden" name="gender" value="{{ request.GET.gender|default:'' }}">
+    {% if request.GET.only_upcoming %}
+      <input type="hidden" name="only_upcoming" value="on">
+    {% endif %}
+    <input type="hidden" name="competition" value="{{ request.GET.competition|default:'' }}">
+    <input type="hidden" name="weight_category" value="{{ request.GET.weight_category|default:'' }}">
+
+    {% if form.non_field_errors %}
+      <ul class="errorlist">
+        {% for e in form.non_field_errors %}<li>{{ e }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+
+    <fieldset class="module aligned">
+      <div class="form-row">
+        <div>
+          <label for="{{ form.gold.id_for_label }}">{{ form.gold.label }}</label>
+          {{ form.gold }}
+          {{ form.gold.errors }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.silver.id_for_label }}">{{ form.silver.label }}</label>
+          {{ form.silver }}
+          {{ form.silver.errors }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.bronze1.id_for_label }}">{{ form.bronze1.label }}</label>
+          {{ form.bronze1 }}
+          {{ form.bronze1.errors }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.bronze2.id_for_label }}">{{ form.bronze2.label }}</label>
+          {{ form.bronze2 }}
+          {{ form.bronze2.errors }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label for="{{ form.notes.id_for_label }}">{{ form.notes.label }}</label>
+          {{ form.notes }}
+          {{ form.notes.errors }}
+        </div>
+      </div>
+
+    </fieldset>
+
+    <div class="submit-row">
+      <input type="submit" class="default" value="ذخیره نتیجه و اعمال امتیاز">
+    </div>
+  </form>
+
+</div>
+
+{# ===================== JS وابستگی‌ها (فقط GET submit) ===================== #}
+<script>
+(function(){
+  const getForm = document.getElementById("filters-form");
+  if (!getForm) return;
+
+  const gender = document.getElementById("id_gender");
+  const onlyUpcoming = document.getElementById("id_only_upcoming");
+  const comp = document.getElementById("id_competition");
+  const wc   = document.getElementById("id_weight_category");
+
+  function clearPlayers(){
+    // فیلدهای انتخاب نفرات در فرم POST هستند، ولی ریست کردن UI مشکلی ندارد
+    ["id_gold","id_silver","id_bronze1","id_bronze2"].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+  }
+
+  function resetWeightAndPlayers(){
+    if (wc) wc.value = "";
+    clearPlayers();
+  }
+
+  function submitGet(){
+    getForm.submit();
+  }
+
+  if (gender){
+    gender.addEventListener("change", () => {
+      // تغییر جنسیت => مسابقات/اوزان/نفرات باید دوباره لود شوند
+      resetWeightAndPlayers();
+      submitGet();
+    });
+  }
+
+  if (onlyUpcoming){
+    onlyUpcoming.addEventListener("change", () => {
+      // تغییر فقط آینده => مسابقات/اوزان/نفرات باید دوباره لود شوند
+      resetWeightAndPlayers();
+      submitGet();
+    });
+  }
+
+  if (comp){
+    comp.addEventListener("change", () => {
+      // تغییر مسابقه => وزن و نفرات ریست و لود مجدد
+      resetWeightAndPlayers();
+      submitGet();
+    });
+  }
+
+  if (wc){
+    wc.addEventListener("change", () => {
+      // تغییر وزن => فقط نفرات ریست و لود مجدد
+      clearPlayers();
+      submitGet();
+    });
+  }
+})();
+</script>
+
+{% endblock %}

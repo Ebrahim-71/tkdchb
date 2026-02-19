@@ -7,6 +7,9 @@ User = get_user_model()
 
 
 
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
 
 def club_license_upload(instance, filename):
     filename = clean_filename(filename)
@@ -446,6 +449,40 @@ class PendingEditProfile(models.Model):
     class Meta:
         verbose_name = "درخواست ویرایش"
         verbose_name_plural = "\u200c\u200c\u200c\u200c\u200c درخواست‌های ویرایش"
+
+
+
+class ProfileChangeHistory(models.Model):
+    user_profile = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    field_name = models.CharField("نام فیلد تغییر یافته", max_length=100)
+    old_value = models.TextField("مقدار قدیمی")
+    new_value = models.TextField("مقدار جدید")
+    changed_at = models.DateTimeField("زمان تغییر", auto_now_add=True)
+
+    def __str__(self):
+        return f"تغییر {self.field_name} برای {self.user_profile}"
+
+    class Meta:
+        verbose_name = "تاریخچه تغییرات پروفایل"
+        verbose_name_plural = "تاریخچه تغییرات پروفایل‌ها"
+
+
+@receiver(post_save, sender=PendingEditProfile)
+def save_change_history(sender, instance, **kwargs):
+    # مقایسه فیلدهای قدیمی و جدید و ذخیره تغییرات
+    for field in instance._meta.get_fields():
+        if field.name in ["original_user", "id"]:  # اجتناب از فیلدهایی که نیاز به تغییر ندارند
+            continue
+        
+        old_value = getattr(instance, f"original_{field.name}", None)
+        new_value = getattr(instance, field.name)
+        if old_value != new_value:
+            ProfileChangeHistory.objects.create(
+                user_profile=instance.original_user,
+                field_name=field.name,
+                old_value=str(old_value) if old_value else 'ندارد',
+                new_value=str(new_value),
+            )
 
 
 # -----------------------------

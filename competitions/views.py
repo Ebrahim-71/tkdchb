@@ -80,6 +80,17 @@ def _can_show_card(status: str, is_paid: bool = False) -> bool:
 # ------------------------------------------------------------------------------------
 # Helpers (local)
 # ------------------------------------------------------------------------------------
+def _gender_db_values_for(req_gender: str):
+
+    if req_gender == "female":
+        return ["female", "f", "F", "زن", "خانم", "بانوان", "Female"]
+    if req_gender == "male":
+        return ["male", "m", "M", "مرد", "آقا", "آقایان", "Male"]
+    return []
+
+
+
+
 
 def jsonable(obj):
     # ✅ چون شما date/datetime را با alias ایمپورت کرده‌اید
@@ -108,8 +119,9 @@ def _birth_jalali_from_profile(p: UserProfile) -> str:
 
 def _poomsae_user_eligible(user, comp):
     """صلاحیت بازیکن برای پومسه: جنسیت + بازه‌های سنی (M2M و FK) + کمربند."""
-    prof = UserProfile.objects.filter(user=user, role__in=["player","both"])\
-                              .only("gender","birth_date","belt_grade").first()
+    prof = UserProfile.objects.filter(user=user)\
+                          .only("gender","birth_date","belt_grade").first()
+
     if not prof:
         return False
 
@@ -1185,20 +1197,23 @@ class CoachStudentsEligibleListView(APIView):
             return Response({"detail": "پروفایل مربی یافت نشد."}, status=status.HTTP_404_NOT_FOUND)
 
         allowed_belts = _allowed_belt_names_for_comp(comp)
+        allowed_codes = set(_norm_belt(x) for x in (allowed_belts or []) if x)  # ✅ نرمال‌سازی
+        
         req_gender = _required_gender_for_comp(comp)
-
+        
         students_qs = (
             UserProfile.objects
-            .filter(coach=coach, role__in=["player", "both"])
+            .filter(coach=coach, role__in=["player", "both","coach","referee"])
             .select_related("club", "tkd_board")
             .only(
                 "id","first_name","last_name","national_code","birth_date",
                 "belt_grade","gender","club","tkd_board"
             )
         )
+        
         if req_gender in ("male","female"):
             students_qs = students_qs.filter(gender=req_gender)
-
+        
         ids = list(students_qs.values_list("id", flat=True))
         existing_map = dict(
             Enrollment.objects
@@ -1206,13 +1221,18 @@ class CoachStudentsEligibleListView(APIView):
             .exclude(status="canceled")
             .values_list("player_id", "status")
         )
-
+        
         items = []
         for s in students_qs:
-            if s.belt_grade not in allowed_belts:
+            # ✅ کمربند شاگرد را هم نرمال کن
+            student_code = _player_belt_code_from_profile(s)  # از serializers ایمپورت شده
+        
+            if allowed_codes and (not student_code or student_code not in allowed_codes):
                 continue
+        
             if not _age_ok_for_comp(s, comp):
                 continue
+        
             items.append({
                 "id": s.id,
                 "first_name": s.first_name,
@@ -1226,6 +1246,7 @@ class CoachStudentsEligibleListView(APIView):
                 "already_enrolled": s.id in existing_map,
                 "enrollment_status": existing_map.get(s.id),
             })
+
 
         belt_groups = list(comp.belt_groups.values_list("label", flat=True))
 
@@ -1431,7 +1452,8 @@ class CoachRegisterStudentsView(APIView):
                 skipped_already.append(pid)
                 continue
 
-            player = UserProfile.objects.filter(id=pid, role__in=["player", "both"]).first()
+            player = UserProfile.objects.filter(id=pid, role__in=["player", "both", "coach"]).first()
+
             if not player:
                 errors[str(pid)] = "پروفایل بازیکن یافت نشد."
                 continue
@@ -1778,7 +1800,6 @@ def public_bracket_view(request, public_id):
         "draws": DrawWithMatchesSerializer(draws_qs, many=True).data,  # از سریالایزر فعلی‌ات استفاده کن
     }
     return Response(data, status=200)
-
 
 
 
@@ -2381,3 +2402,98 @@ class MyPoomsaeEnrollmentsView(views.APIView):
             }
 
         return Response({"standard": pack(std), "creative": pack(cre)}, status=200)
+
+
+
+class PoomsaeCoachStudentsEligibleListView(PoomsaeKwargMixin, APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated, IsCoach]
+
+    def get(self, request, *args, **kwargs):
+        public_id = self.get_public_id_from_kwargs(**kwargs)  # key یا public_id
+        comp = get_object_or_404(PoomsaeCompetition, public_id__iexact=str(public_id).strip())
+
+        coach = _coach_from_request(request)
+        if not coach:
+            return Response({"detail": "پروفایل مربی یافت نشد."}, status=404)
+
+        req_gender = _required_gender_for_comp(comp)
+
+        students_qs = (
+            UserProfile.objects
+            .filter(coach=coach)
+            .exclude(pk=coach.pk)  # ✅ خود مربی در لیست نیاید
+            .select_related("club", "tkd_board", "user")
+            .only(
+                "id", "first_name", "last_name", "national_code", "birth_date",
+                "belt_grade", "gender", "club", "tkd_board", "user"
+            )
+        )
+
+
+        # ✅ اگر مسابقه پومسه جنسیت خاص دارد، فیلتر جنسیت را با مقادیر سازگار با DB اعمال کن
+        if req_gender in ("male", "female"):
+            vals = _gender_db_values_for(req_gender)
+            if vals:
+                students_qs = students_qs.filter(gender__in=vals)
+            else:
+                # fallback خیلی محافظه‌کارانه
+                students_qs = students_qs.filter(gender=req_gender)
+
+        ids = list(students_qs.values_list("id", flat=True))
+
+        # ثبت‌نام‌های قبلی پومسه (استاندارد/ابداعی هر دو)
+        existing_map = dict(
+            PoomsaeEnrollment.objects
+            .filter(competition=comp, player_id__in=ids)
+            .exclude(status="canceled")
+            .values_list("player_id", "status")
+        )
+
+        items = []
+        for s in students_qs:
+            # ✅ eligibility واقعی پومسه (جنسیت + سن + کمربند)
+            eligible = _poomsae_user_eligible(getattr(s, "user", None), comp)
+
+            # ✅ غیر واجد شرایط اصلاً نمایش داده نشود
+            if not eligible:
+                continue
+
+            items.append({
+                "id": s.id,
+                "first_name": s.first_name,
+                "last_name": s.last_name,
+                "national_code": getattr(s, "national_code", "") or "",
+                "birth_date": getattr(s, "birth_date", "") or "",
+                "belt_grade": getattr(s, "belt_grade", "") or "",
+                "belt": getattr(s, "belt_grade", "") or "",
+                "gender": getattr(s, "gender", None),
+
+                "club_name": getattr(s.club, "club_name", "") if getattr(s, "club_id", None) else "",
+                "board_name": getattr(s.tkd_board, "name", "") if getattr(s, "tkd_board_id", None) else "",
+
+                "eligible": True,  # چون فقط eligible ها وارد لیست می‌شوند
+
+                "already_enrolled": s.id in existing_map,
+                "enrollment_status": existing_map.get(s.id),
+            })
+
+        entry_fee_irr = int(getattr(comp, "entry_fee", 0) or 0)
+
+        return Response({
+            "competition": {
+                "public_id": comp.public_id,
+                "title": getattr(comp, "name", None) or getattr(comp, "title", None),
+                "entry_fee": entry_fee_irr,
+                "entry_fee_rial": entry_fee_irr,
+                "entry_fee_irr": entry_fee_irr,
+                "entry_fee_toman": entry_fee_irr // 10,
+                "gender": getattr(comp, "gender", None),
+                "age_category_name": _age_groups_display_for(comp),
+            },
+            "students": items,
+
+            # ✅ فقط آنهایی که قبلاً ثبت‌نام کرده‌اند و در همین لیستِ eligible هستند
+            "prechecked_ids": [pid for pid in existing_map.keys() if any(x["id"] == pid for x in items)],
+        }, status=200)
+

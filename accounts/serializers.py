@@ -567,33 +567,57 @@ def is_persian(value: str) -> bool:
 
 
 # -------------------- ۱۰) ویرایش پروفایل (Pending) --------------------
-class PendingEditProfileSerializer(CleanUploadFilenameMixin, serializers.ModelSerializer):
-    FILE_FIELDS = ("profile_image",)
-
+class PendingEditProfileSerializer(serializers.ModelSerializer):
     original_user = serializers.PrimaryKeyRelatedField(read_only=True)
 
-    club_names = serializers.ListField(child=serializers.CharField(), required=False)
-    kyorogi = serializers.BooleanField(required=False)
-    poomseh = serializers.BooleanField(required=False)
-    hanmadang = serializers.BooleanField(required=False)
-    kyorogi_level = serializers.CharField(required=False, allow_blank=True)
-    kyorogi_level_International = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True
+    # اگر توی مدل club_names JSONField/ListField هست:
+    club_names = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
     )
-    poomseh_level = serializers.CharField(required=False, allow_blank=True)
-    poomseh_level_International = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True
-    )
-    hanmadang_level = serializers.CharField(required=False, allow_blank=True)
-    hanmadang_level_International = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True
-    )
+
+    # فایل
     profile_image = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = PendingEditProfile
-        exclude = ("submitted_at",)
+        exclude = ("submitted_at",)  # طبق کدت
 
+    # -----------------------
+    # normalize helpers
+    # -----------------------
+    def _is_junk_str(self, v: str) -> bool:
+        return isinstance(v, str) and v.strip().lower() in ("", "null", "none", "undefined")
+
+    def to_internal_value(self, data):
+        data = data.copy()
+
+        # ✅ profile_image: اگر رشته junk آمد اصلاً به serializer نده
+        v = data.get("profile_image")
+        if self._is_junk_str(v):
+            data.pop("profile_image", None)
+
+        # ✅ club_names: اگر JSON string بود تبدیل به list
+        cn = data.get("club_names")
+        if isinstance(cn, str):
+            try:
+                parsed = json.loads(cn)
+                if isinstance(parsed, list):
+                    data["club_names"] = parsed
+            except Exception:
+                # اگر parse نشد، دست نزن
+                pass
+
+        return super().to_internal_value(data)
+
+    def update(self, instance, validated_data):
+        if "profile_image" in validated_data and validated_data["profile_image"] is None:
+            validated_data.pop("profile_image", None)
+        return super().update(instance, validated_data)
+
+    # -----------------------
+    # field validators
+    # -----------------------
     def validate_address(self, value):
         v = (value or "").strip()
         if len(v) < 10 or len(v) > 300:
@@ -628,7 +652,6 @@ class PendingEditProfileSerializer(CleanUploadFilenameMixin, serializers.ModelSe
         if errors:
             raise serializers.ValidationError(errors)
         return data
-
 
 # -------------------- ۱۱) لیست باشگاه‌ها --------------------
 class ClubSerializer(serializers.ModelSerializer):

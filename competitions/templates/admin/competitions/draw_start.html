@@ -82,12 +82,13 @@
 
 /* چاپ */
 @media print{
-  @page{ size:A4 portrait; margin:8mm; } /* حاشیهٔ چاپ کمتر */
+  @page{ size:A4 landscape; margin:8mm; }  /* ✅ عرض بیشتر برای 32 نفر */
   .breadcrumbs,#draw-form,#header,#content-main > .module:not(.br-panel){ display:none !important; }
   html,body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   .br-panel{ padding:0; background:#fff; }
   .br-page{ width:100%; height:100%; }
 }
+
 </style>
 
 <script>
@@ -203,9 +204,17 @@
 
     const rounds = Math.max(1, Math.log2(drawSize));
     const pairs  = r1Pairs();
-    const rowsPerSide = Math.max(1, Math.floor(pairs.length/2));
-    const leftRows  = pairs.slice(0, rowsPerSide);
-    const rightRows = pairs.slice(rowsPerSide);
+
+    // ✅ تعداد ردیف‌های هر سمت را از اندازه جدول تعیین کن (برای 32 → 8)
+    const rowsPerSide = Math.max(1, drawSize / 4);
+    
+    // ✅ اگر pairs کمتر بود، با جای خالی پرش کن تا چیدمان ثابت بماند
+    const padded = pairs.slice();
+    while (padded.length < rowsPerSide * 2) padded.push(['—','—']);
+    
+    const leftRows  = padded.slice(0, rowsPerSide);
+    const rightRows = padded.slice(rowsPerSide, rowsPerSide * 2);
+
 
     // عمودی
     const usableH = PAGE_H - PADS.top - PADS.bottom - SAFE_MARGIN*2;
@@ -225,8 +234,14 @@
 
     const spanLeft  = leftMaxX - leftStartX;
     const spanRight = rightStartX - rightMinX;
-    const colGapL = Math.max(COL_GAP_MIN, (spanLeft  - STUB)/(rounds-1 || 1));
-    const colGapR = Math.max(COL_GAP_MIN, (spanRight - STUB)/(rounds-1 || 1));
+    let colGapL = (spanLeft  - STUB) / (rounds - 1 || 1);
+    let colGapR = (spanRight - STUB) / (rounds - 1 || 1);
+    
+    // اگر خیلی تنگ شد (معمولاً 32 نفر در portrait)، حداقلِ منطقی بده
+    const MIN_OK = 12;  // ✅ قابل تنظیم
+    colGapL = Math.max(colGapL, MIN_OK);
+    colGapR = Math.max(colGapR, MIN_OK);
+
 
     const anchorL = r => leftStartX  + (r-1)*colGapL; // 1..rounds
     const anchorR = r => rightStartX - (r-1)*colGapR; // 1..rounds

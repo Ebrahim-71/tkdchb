@@ -44,6 +44,33 @@ def _can_show_card(status: str, is_paid: bool = False) -> bool:
 # Helpers: تاریخ
 # -------------------------------------------------
 
+def _get_player_like_profile(user: "UserProfile"):
+    """
+    پروفایلی برگردان که برای ثبت‌نام به عنوان بازیکن قابل استفاده باشد.
+    اولویت: role=player
+    اگر وجود نداشت: role=coach (یا هر پروفایل موجود)
+    """
+    if not user:
+        return None
+
+    prof = getattr(user, "profile", None)
+    if prof and getattr(prof, "role", None) in ("player", "coach"):
+        return prof
+
+    # اولویت با player
+    p = UserProfile.objects.filter(user=user, role="player").first()
+    if p:
+        return p
+
+    # fallback: اگر فقط coach است
+    c = UserProfile.objects.filter(user=user, role="coach").first()
+    if c:
+        return c
+
+    # آخرین fallback: هر پروفایل
+    return UserProfile.objects.filter(user=user).first()
+
+
 
 def _full_name(u):
     if not u:
@@ -871,12 +898,17 @@ class CompetitionRegistrationSerializer(serializers.Serializer):
         user = getattr(req, "user", None)
         if not user or not getattr(user, "is_authenticated", False):
             raise serializers.ValidationError({"__all__": "برای ثبت‌نام باید وارد شوید."})
-        player = getattr(user, "profile", None)
-        if not (player and getattr(player, "role", None) == "player"):
-            player = UserProfile.objects.filter(user=user, role="player").first()
+        # کاربر/پروفایل بازیکن (قبلاً فقط player را می‌گرفت)
+        user = getattr(req, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            raise serializers.ValidationError({"__all__": "برای ثبت‌نام باید وارد شوید."})
+        
+        player = _get_player_like_profile(user)
         if not player:
             raise serializers.ValidationError({"__all__": "پروفایل بازیکن پیدا نشد."})
+        
         self._player = player
+
 
         # جلوگیری از ثبت‌نام تکراری
         if Enrollment.objects.filter(competition=comp, player=player).exclude(status="canceled").exists():
@@ -1721,8 +1753,9 @@ class PoomsaeCompetitionDetailSerializer(serializers.ModelSerializer):
     registration_open = serializers.SerializerMethodField()
     registration_open_effective = serializers.SerializerMethodField()  # ← اضافه
     team_registration_open = serializers.SerializerMethodField()  # ←
-    registration_start = serializers.DateTimeField(read_only=True, required=False, allow_null=True)
-    registration_end = serializers.DateTimeField(read_only=True, required=False, allow_null=True)
+    registration_start = serializers.DateField(read_only=True, required=False, allow_null=True)
+    registration_end = serializers.DateField(read_only=True, required=False, allow_null=True)
+
 
     # تاریخ‌های جلالی
     registration_start_jalali = serializers.SerializerMethodField()
@@ -1975,12 +2008,11 @@ class PoomsaeCompetitionDetailSerializer(serializers.ModelSerializer):
         req = self.context.get("request")
         user = getattr(req, "user", None)
 
-        now = timezone.now()
-        in_reg_window = bool(
-            getattr(obj, "registration_start", None)
-            and getattr(obj, "registration_end", None)
-            and obj.registration_start <= now <= obj.registration_end
-        )
+        today = timezone.localdate()
+        rs = _as_local_date(getattr(obj, "registration_start", None))
+        re_ = _as_local_date(getattr(obj, "registration_end", None))
+        in_reg_window = bool(rs and re_ and (rs <= today <= re_))
+
 
         wins = _poomsae_age_windows(obj)
         data = {
@@ -2103,12 +2135,16 @@ class PoomsaeRegistrationSerializer(serializers.Serializer):
         user = getattr(req, "user", None)
         if not user or not getattr(user, "is_authenticated", False):
             raise serializers.ValidationError({"__all__": "برای ثبت‌نام باید وارد شوید."})
-        player = getattr(user, "profile", None)
-        if not (player and getattr(player, "role", None) == "player"):
-            player = UserProfile.objects.filter(user=user, role="player").first()
+        user = getattr(req, "user", None)
+        if not user or not getattr(user, "is_authenticated", False):
+            raise serializers.ValidationError({"__all__": "برای ثبت‌نام باید وارد شوید."})
+        
+        player = _get_player_like_profile(user)
         if not player:
             raise serializers.ValidationError({"__all__": "پروفایل بازیکن پیدا نشد."})
+        
         self._player = player
+
 
         # تاریخ بیمه ≥ ۷۲ ساعت قبل از تاریخ برگزاری (این یکی را عمداً در حالت force هم نگه داشتیم)
         issue_g = _to_greg_from_str_jalali(attrs.get("insurance_issue_date"))

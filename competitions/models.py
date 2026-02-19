@@ -13,12 +13,16 @@ from django.utils import timezone
 from django.db import models as djm
 from typing import List, Optional
 
+
 # competitions/models.py
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models import UserProfile, TkdClub, TkdBoard
 from django.conf import settings
 
+from django.db import models
+from django.utils import timezone
+from django.db.models import Q
 
 User = get_user_model()
 
@@ -139,7 +143,29 @@ class WeightCategory(models.Model):
 # =========================
 # مسابقه کیوروگی
 # =========================
+
+class KyorugiCompetitionQuerySet(models.QuerySet):
+    def registration_active(self):
+        # همان active قبلی (یا اسمش را همین نگه دار)
+        today = timezone.localdate()
+        return self.filter(
+            Q(registration_manual=True) |
+            (Q(registration_manual__isnull=True) &
+             Q(registration_start__lte=today) &
+             Q(registration_end__gte=today))
+        ).exclude(registration_manual=False)
+
+    def not_finished(self):
+        # معیار جدید: مسابقه هنوز تمام نشده
+        today = timezone.localdate()
+        return self.filter(
+            Q(competition_date__isnull=True) | Q(competition_date__gte=today)
+        )
+
+
 class KyorugiCompetition(RegistrationManualMixin, models.Model):
+    objects = KyorugiCompetitionQuerySet.as_manager()
+
     GENDER_CHOICES = [('male', 'آقایان'), ('female', 'بانوان')]
     BELT_LEVEL_CHOICES = [
         ('yellow_blue', 'زرد تا آبی'),
@@ -735,17 +761,60 @@ def _award_points_after_payment(enrollment):
         TkdBoard.objects.filter(pk=board.pk).update(
             ranking_total=F("ranking_total") + award.points_board
         )
+
+
+
 class KyorugiResult(models.Model):
-    competition     = models.ForeignKey("KyorugiCompetition", on_delete=models.CASCADE, related_name="results")
-    weight_category = models.ForeignKey("WeightCategory",       on_delete=models.CASCADE, related_name="results")
+    competition     = models.ForeignKey(
+        "KyorugiCompetition",
+        on_delete=models.CASCADE,
+        related_name="results",
+        verbose_name="مسابقه",
+    )
+    weight_category = models.ForeignKey(
+        "WeightCategory",
+        on_delete=models.CASCADE,
+        related_name="results",
+        verbose_name="رده وزنی",
+    )
 
-    gold_enrollment    = models.ForeignKey("Enrollment", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    silver_enrollment  = models.ForeignKey("Enrollment", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    bronze1_enrollment = models.ForeignKey("Enrollment", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    bronze2_enrollment = models.ForeignKey("Enrollment", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    notes = models.TextField(blank=True, default="")
+    gold_enrollment    = models.ForeignKey(
+        "Enrollment",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="طلا (مقام اول)",
+    )
+    silver_enrollment  = models.ForeignKey(
+        "Enrollment",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="نقره (مقام دوم)",
+    )
+    bronze1_enrollment = models.ForeignKey(
+        "Enrollment",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="برنز (مقام سوم)",
+    )
+    bronze2_enrollment = models.ForeignKey(
+        "Enrollment",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="برنز مشترک (سوم مشترک)",
+    )
 
-    created_by = models.ForeignKey("auth.User", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    notes = models.TextField(blank=True, default="", verbose_name="یادداشت")
+    created_by = models.ForeignKey(
+        "auth.User",
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="ثبت‌کننده",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -753,9 +822,173 @@ class KyorugiResult(models.Model):
         unique_together = ("competition", "weight_category")
         verbose_name = "نتیجه وزن"
         verbose_name_plural = "نتایج اوزان"
+        indexes = [
+            models.Index(fields=["competition", "weight_category"]),
+        ]
 
     def __str__(self):
         return f"{self.competition.title} – {self.weight_category}"
+
+    def clean(self):
+        # 1) تکراری نبودن Enrollmentها در مقام‌ها
+        chosen = [x for x in [self.gold_enrollment, self.silver_enrollment, self.bronze1_enrollment, self.bronze2_enrollment] if x]
+        if len(chosen) != len(set(chosen)):
+            raise ValidationError("یک ثبت‌نام نمی‌تواند همزمان در چند مقام ثبت شود.")
+
+        # 2) هر Enrollment باید متعلق به همین مسابقه و همین وزن باشد
+        for fld in ["gold_enrollment", "silver_enrollment", "bronze1_enrollment", "bronze2_enrollment"]:
+            en = getattr(self, fld)
+            if not en:
+                continue
+            if en.competition_id != self.competition_id:
+                raise ValidationError({fld: "این ثبت‌نام متعلق به این مسابقه نیست."})
+            if en.weight_category_id != self.weight_category_id:
+                raise ValidationError({fld: "این ثبت‌نام متعلق به این رده وزنی نیست."})
+
+        super().clean()
+
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        # lock روی خود رکورد (اگر آپدیت است)
+        if self.pk:
+            type(self).objects.select_for_update().filter(pk=self.pk).exists()
+
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+        # idempotent: اول rollback، بعد اعمال جدید
+        _rollback_result_points(self)
+        _apply_result_points(self)
+
+
+def _rollback_result_points(result: "KyorugiResult"):
+    """
+    تراکنش‌های قبلی همین result را از ranking_total کم می‌کند و حذف می‌کند.
+    """
+    txs = RankingTransaction.objects.filter(result=result)
+    if not txs.exists():
+        return
+
+    for tx in txs:
+        pts = float(tx.points or 0.0)
+        if pts == 0:
+            continue
+
+        if tx.subject_type == RankingTransaction.SUBJECT_PLAYER:
+            UserProfile.objects.filter(pk=tx.subject_id).update(
+                ranking_competition=F("ranking_competition") - pts,
+                ranking_total=F("ranking_total") - pts,
+            )
+        elif tx.subject_type == RankingTransaction.SUBJECT_COACH:
+            UserProfile.objects.filter(pk=tx.subject_id).update(
+                ranking_total=F("ranking_total") - pts
+            )
+        elif tx.subject_type == RankingTransaction.SUBJECT_CLUB:
+            TkdClub.objects.filter(pk=tx.subject_id).update(
+                ranking_total=F("ranking_total") - pts
+            )
+        elif tx.subject_type == RankingTransaction.SUBJECT_BOARD:
+            TkdBoard.objects.filter(pk=tx.subject_id).update(
+                ranking_total=F("ranking_total") - pts
+            )
+
+    txs.delete()
+
+
+def _apply_result_points(result: "KyorugiResult"):
+    """
+    امتیازدهی مطابق نیاز:
+    gold=3, silver=2, bronze=1, bronze2=1
+    coach=30% of player points
+    club=20% of player points
+    board=20% of player points
+    """
+    medal_map = [
+        ("gold",   result.gold_enrollment,   3.0),
+        ("silver", result.silver_enrollment, 2.0),
+        ("bronze", result.bronze1_enrollment, 1.0),
+        ("bronze", result.bronze2_enrollment, 1.0),
+    ]
+
+    tx_bulk = []
+
+    for medal, en, p_points in medal_map:
+        if not en:
+            continue
+
+        player = en.player
+        coach  = en.coach
+        club   = en.club
+        board  = en.board
+
+        coach_points = round(p_points * 0.30, 2) if coach else 0.0
+        club_points  = round(p_points * 0.20, 2) if club else 0.0
+        board_points = round(p_points * 0.20, 2) if board else 0.0
+
+        # دفتر امتیاز (ledger)
+        tx_bulk.append(RankingTransaction(
+            competition=result.competition,
+            result=result,
+            subject_type=RankingTransaction.SUBJECT_PLAYER,
+            subject_id=player.pk,
+            medal=medal,
+            points=p_points,
+        ))
+
+        if coach and coach_points:
+            tx_bulk.append(RankingTransaction(
+                competition=result.competition,
+                result=result,
+                subject_type=RankingTransaction.SUBJECT_COACH,
+                subject_id=coach.pk,
+                medal=medal,
+                points=coach_points,
+            ))
+
+        if club and club_points:
+            tx_bulk.append(RankingTransaction(
+                competition=result.competition,
+                result=result,
+                subject_type=RankingTransaction.SUBJECT_CLUB,
+                subject_id=club.pk,
+                medal=medal,
+                points=club_points,
+            ))
+
+        if board and board_points:
+            tx_bulk.append(RankingTransaction(
+                competition=result.competition,
+                result=result,
+                subject_type=RankingTransaction.SUBJECT_BOARD,
+                subject_id=board.pk,
+                medal=medal,
+                points=board_points,
+            ))
+
+        # اعمال به totals
+        UserProfile.objects.filter(pk=player.pk).update(
+            ranking_competition=F("ranking_competition") + p_points,
+            ranking_total=F("ranking_total") + p_points,
+        )
+        if coach and coach_points:
+            UserProfile.objects.filter(pk=coach.pk).update(
+                ranking_total=F("ranking_total") + coach_points
+            )
+        if club and club_points:
+            TkdClub.objects.filter(pk=club.pk).update(
+                ranking_total=F("ranking_total") + club_points
+            )
+        if board and board_points:
+            TkdBoard.objects.filter(pk=board.pk).update(
+                ranking_total=F("ranking_total") + board_points
+            )
+
+    if tx_bulk:
+        RankingTransaction.objects.bulk_create(tx_bulk)
+
+
+    
+
 
 # competitions/models.py (افزودنی)
 class RankingTransaction(models.Model):
@@ -805,7 +1038,16 @@ def _seminar_default_public_id() -> str:
 # -----------------------
 # Seminar
 # -----------------------
+class SeminarQuerySet(models.QuerySet):
+    def active(self):
+        today = timezone.localdate()
+        return self.filter(registration_start__lte=today, registration_end__gte=today)
+
+
 class Seminar(models.Model):
+    objects = SeminarQuerySet.as_manager()
+
+    
     ROLE_PLAYER  = "player"
     ROLE_COACH   = "coach"
     ROLE_REFEREE = "referee"
@@ -1002,8 +1244,20 @@ class SeminarParticipants(SeminarRegistration):
 
 #======================================================================poomseh==================================================================
 # ====================== POOMSAE ======================
-
+class PoomsaeCompetitionQuerySet(models.QuerySet):
+    def active(self):
+        today = timezone.localdate()
+        return self.filter(
+            Q(registration_manual=True) |
+            (Q(registration_manual__isnull=True) &
+             Q(registration_start__lte=today) &
+             Q(registration_end__gte=today))
+        ).exclude(registration_manual=False)
+        
+        
 class PoomsaeCompetition(RegistrationManualMixin, models.Model):
+    objects = PoomsaeCompetitionQuerySet.as_manager()
+
     class PoomsaeStyle(models.TextChoices):
         STANDARD = "standard", _("استاندارد")
         CREATIVE = "creative", _("ابداعی")

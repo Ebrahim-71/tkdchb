@@ -30,7 +30,6 @@ from django.db.models import Q
 from django.contrib.admin.utils import construct_change_message as _dj_construct_change_message
 
 
-
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -63,8 +62,102 @@ from competitions.services.numbering_service import (
 )
 
 ELIGIBLE_STATUSES = ("paid", "confirmed", "accepted", "completed")
+class KyorugiResultEntryForm(forms.Form):
+    gender = forms.ChoiceField(
+        choices=(("", "همه"), ("male", "آقایان"), ("female", "بانوان")),
+        required=False,
+        label="جنسیت",
+    )
+    only_upcoming = forms.BooleanField(required=False, initial=False, label="فقط مسابقات آینده")
+
+
+    competition = forms.ModelChoiceField(
+        queryset=KyorugiCompetition.objects.none(),
+        required=False,
+        label="مسابقه",
+    )
+    weight_category = forms.ModelChoiceField(
+        queryset=WeightCategory.objects.none(),
+        required=False,
+        label="رده وزنی",
+    )
+
+    gold = forms.ModelChoiceField(queryset=Enrollment.objects.none(), required=False, label="نفر اول")
+    silver = forms.ModelChoiceField(queryset=Enrollment.objects.none(), required=False, label="نفر دوم")
+    bronze1 = forms.ModelChoiceField(queryset=Enrollment.objects.none(), required=False, label="نفر سوم")
+    bronze2 = forms.ModelChoiceField(queryset=Enrollment.objects.none(), required=False, label="نفر سوم مشترک")
+
+    notes = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 4}), label="یادداشت")
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop("request", None)
+        super().__init__(*args, **kwargs)
+
+        data = self.data if self.is_bound else (self.request.GET if self.request else {})
+
+        gender = data.get("gender")
+        only_upcoming = data.get("only_upcoming") in ("on", "1", "true", True)
+
+        qs = KyorugiCompetition.objects.all().order_by("-competition_date", "-id")
+        if gender:
+            qs = qs.filter(gender=gender)
+        if only_upcoming:
+            qs = qs.filter(competition_date__gte=timezone.localdate())
+
+        self.fields["competition"].queryset = qs
+
+        comp = qs.filter(id=data.get("competition")).first()
+        wc_qs = WeightCategory.objects.none()
+
+        if comp:
+            allowed_ids = comp.mat_assignments.values_list("weights__id", flat=True).distinct()
+
+            wc_qs = WeightCategory.objects.filter(id__in=allowed_ids, gender=comp.gender)
+
+        self.fields["weight_category"].queryset = wc_qs
+
+        wc = wc_qs.filter(id=data.get("weight_category")).first()
+
+        eq = Enrollment.objects.none()
+        if comp and wc:
+            eq = Enrollment.objects.filter(
+                competition=comp,
+                weight_category=wc,
+                status__in=ELIGIBLE_STATUSES,
+            ).select_related("player")
+
+        def _enroll_label(e: Enrollment) -> str:
+            p = getattr(e, "player", None)
+            if not p:
+                return f"Enrollment #{e.id}"
+            return (
+                getattr(p, "full_name", None)
+                or (f"{getattr(p,'first_name','')} {getattr(p,'last_name','')}".strip())
+                or getattr(p, "username", None)
+                or str(p)
+            )
+        
+        for f in ("gold", "silver", "bronze1", "bronze2"):
+            self.fields[f].queryset = eq
+            self.fields[f].label_from_instance = _enroll_label
+    
+    
+    def clean(self):
+        cleaned = super().clean()
+        picks = [
+            cleaned.get("gold"),
+            cleaned.get("silver"),
+            cleaned.get("bronze1"),
+            cleaned.get("bronze2"),
+        ]
+        picks = [p for p in picks if p]
+        if len(picks) != len(set(picks)):
+            raise forms.ValidationError("یک نفر نمی‌تواند در چند مقام همزمان ثبت شود.")
+        return cleaned
 
 # ---------------------- ابزارهای تاریخ/زمان (یکپارچه) ----------------------
+
+
 
 def _tz():
     """منطقه‌ی زمانی فعلی جنگو."""
@@ -149,6 +242,15 @@ def _logo_url():
     return url or static("img/board-logo.png")
 
 # ---------------------- ایمن‌سازی نام فایل‌های آپلودی ----------------------
+
+def _today_local() -> datetime.date:
+    # Django 4+: timezone.localdate() مطمئن‌ترین است
+    try:
+        return timezone.localdate()
+    except Exception:
+        return timezone.localtime(timezone.now()).date()
+
+
 
 def _safe_filename(full_name: str) -> str:
     """
@@ -572,10 +674,35 @@ class ParticipantsReportAdmin(admin.ModelAdmin):
 
 class ParticipantsReportForm(forms.Form):
     competition = forms.ModelChoiceField(
-        queryset=KyorugiCompetition.objects.order_by("-competition_date", "-id"),
+        queryset=KyorugiCompetition.objects.none(),  # ✅ در __init__ ست می‌کنیم
         label="مسابقه",
         required=True,
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        today = _today_local()
+
+        # نوع فیلد را تشخیص می‌دهیم (DateField یا DateTimeField)
+        try:
+            field = KyorugiCompetition._meta.get_field("competition_date")
+        except Exception:
+            field = None
+
+        qs = KyorugiCompetition.objects.all()
+
+        if isinstance(field, DateTimeField):
+            start_today = timezone.make_aware(
+                datetime.datetime.combine(today, datetime.time(0, 0, 0)),
+                _tz()
+            )
+            qs = qs.filter(competition_date__gte=start_today)
+        else:
+            # پیش‌فرض: DateField
+            qs = qs.filter(competition_date__gte=today)
+
+        self.fields["competition"].queryset = qs.order_by("-competition_date", "-id")
 
 # ============================ شروع قرعه‌کشی (Kyorugi) ============================
 
@@ -640,6 +767,8 @@ class DrawStartForm(forms.Form):
             auto_size = s
         self.fields["auto_count"].initial = auto_count
         self.fields["auto_size"].initial  = auto_size
+
+
 
 @admin.register(DrawStart)
 class DrawStartAdmin(admin.ModelAdmin):
@@ -735,6 +864,48 @@ class DrawStartAdmin(admin.ModelAdmin):
         if extra_context:
             ctx.update(extra_context)
         return TemplateResponse(request, "admin/competitions/draw_start.html", ctx)
+
+
+@admin.site.admin_view
+@transaction.atomic
+def kyorugi_results_view(request):
+    if request.method == "POST":
+        form = KyorugiResultEntryForm(request.POST, request=request)
+        if form.is_valid():
+            comp = form.cleaned_data["competition"]
+            wc = form.cleaned_data["weight_category"]
+
+            result, _ = KyorugiResult.objects.get_or_create(
+                competition=comp,
+                weight_category=wc,
+                defaults={"created_by": request.user},
+            )
+
+            result.gold_enrollment = form.cleaned_data["gold"]
+            result.silver_enrollment = form.cleaned_data["silver"]
+            result.bronze1_enrollment = form.cleaned_data["bronze1"]
+            result.bronze2_enrollment = form.cleaned_data["bronze2"]
+            result.notes = form.cleaned_data["notes"]
+            result.save()
+
+            apply_results_and_points(result.id)
+
+            messages.success(request, "نتیجه ذخیره شد.")
+            qs = request.META.get("QUERY_STRING", "")
+            return redirect(request.path + (("?" + qs) if qs else ""))
+
+    else:
+        form = KyorugiResultEntryForm(request.GET, request=request)
+
+    return TemplateResponse(
+        request,
+        "admin/competitions/results_entry.html",
+        {
+            **admin.site.each_context(request),
+            "title": "ثبت نتایج کیوروگی",
+            "form": form,
+        },
+    )
 
 # ---------- شماره‌گذاری بازی‌ها ----------
 
@@ -911,10 +1082,15 @@ def numbering_publish_view(request):
 
     return redirect(f"/admin/competitions/numbering/?competition={comp.id}")
 
-def _inject_numbering_url(get_urls_fn):
+def _inject_competitions_admin_urls(get_urls_fn):
     def wrapper():
         urls = get_urls_fn()
         extra = [
+            path(
+                "competitions/kyorugi-results/",
+                admin.site.admin_view(kyorugi_results_view),
+                name="competitions_kyorugi_results",
+            ),
             path(
                 "competitions/numbering/",
                 admin.site.admin_view(numbering_view),
@@ -928,7 +1104,8 @@ def _inject_numbering_url(get_urls_fn):
         ]
         return extra + urls
     return wrapper
-admin.site.get_urls = _inject_numbering_url(admin.site.get_urls)
+
+admin.site.get_urls = _inject_competitions_admin_urls(admin.site.get_urls)
 
 class NumberingEntry(KyorugiCompetition):
     class Meta:
@@ -1809,3 +1986,64 @@ class DiscountCodeAdmin(admin.ModelAdmin):
     "coach__last_name",
     "coach__username",
 )
+
+
+class KyorugiResultAdminForm(forms.ModelForm):
+    class Meta:
+        model = KyorugiResult
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop("request", None)
+        super().__init__(*args, **kwargs)
+
+        # ✅ اگر فرم bind نشده (صفحه add)، از GET بخون
+        data = self.data if self.is_bound else (getattr(self.request, "GET", {}) if self.request else {})
+
+        comp_id = data.get("competition") or getattr(self.instance, "competition_id", None)
+        w_id    = data.get("weight_category") or getattr(self.instance, "weight_category_id", None)
+
+        # وزن‌ها بر اساس مسابقه
+        if comp_id:
+            try:
+                comp = KyorugiCompetition.objects.get(pk=comp_id)
+                allowed_ids = comp.mat_assignments.values_list("weights__id", flat=True).distinct()
+                self.fields["weight_category"].queryset = WeightCategory.objects.filter(id__in=list(allowed_ids))
+            except KyorugiCompetition.DoesNotExist:
+                self.fields["weight_category"].queryset = WeightCategory.objects.none()
+        else:
+            self.fields["weight_category"].queryset = WeightCategory.objects.none()
+
+        # enrollments بر اساس comp + weight
+        medal_fields = ["gold_enrollment", "silver_enrollment", "bronze1_enrollment", "bronze2_enrollment"]
+        if comp_id and w_id:
+            qs = Enrollment.objects.filter(
+                competition_id=comp_id,
+                weight_category_id=w_id,
+                status__in=ELIGIBLE_STATUSES,
+            )
+            for f in medal_fields:
+                if f in self.fields:
+                    self.fields[f].queryset = qs
+        else:
+            for f in medal_fields:
+                if f in self.fields:
+                    self.fields[f].queryset = Enrollment.objects.none()
+
+
+@admin.register(KyorugiResult)
+class KyorugiResultAdmin(admin.ModelAdmin):
+    form = KyorugiResultAdminForm
+
+    def get_form(self, request, obj=None, **kwargs):
+        BaseForm = super().get_form(request, obj, **kwargs)
+
+        class FormWithRequest(BaseForm):
+            def __init__(self2, *args, **kw):
+                kw["request"] = request
+                super().__init__(*args, **kw)
+
+        return FormWithRequest
+
+    class Media:
+        js = ("admin/competitions/kyorugiresult_deps.js",)

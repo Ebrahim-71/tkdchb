@@ -67,6 +67,19 @@
       width:max-content; display:flex; gap:var(--col-gap); justify-content:flex-start; align-items:flex-start; padding:0 14px 32px; margin:0; will-change:transform;
     }
 
+    /* ✅ برای split 32: دو برد 16تایی داخل یک کارت */
+    .br-split-32{
+      display:flex; flex-direction:column; gap:28px;
+      padding:10px 0 6px;
+    }
+    .br-split-32 .split-title{
+      font-weight:800; color:#111827;
+      margin:0 14px 6px;
+      font-size:14px;
+    }
+    .br-split-32 .bracket-wrap .view{ height:560px; } /* ✅ نصف ارتفاع برای هر نیمه */
+    .br-split-32 .bracket-wrap .board{ transform:scale(var(--scale,0.66)); } /* کمی خواناتر */
+
     .player-input{
       background:#fff; border:2px solid var(--stroke); border-radius:8px; padding:9px 12px; text-align:center; font-size:21px; font-weight:bolder; height:70px; color:#111; width:190px; max-width:250px; direction:rtl; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;
     }
@@ -77,6 +90,9 @@
 
     /* راندها (تا ۳۲) */
     .r1{ --box-h:46px; --gap-y:24px; --stub-len:35px; --stub-ext:60px; }
+    /* ✅ Step 1: فقط در split-32، ستون راند ۱ کمی پایین‌تر بیاید تا وسط راند ۲ قرار بگیرد */
+    .br-split-32 .r1{ margin-top: 17px; }
+
     .r1 .item{ position:relative; height:var(--box-h); }
     .r1 .stack{ display:flex; flex-direction:column; gap:var(--gap-y); }
     .r1 .item::before{ content:""; position:absolute; top:50%; transform:translateY(-50%); right:-35px; width:35px; height:0; border-top:var(--line-w) solid var(--stroke); }
@@ -94,21 +110,181 @@
     .r3 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
     .r3 .item:nth-child(2n)::after{ content:""; position:absolute; top:-235px; height:282px; right:-94px; width:59px; background:linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat, linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
     .r3 .bubble{ top:-205% }
+
     .r4{ --box-h:46px; --gap-y:calc(2*((46px + 24px)*2 + 24px)); --stub-len:35px; --stub-ext:96px; margin-top:243px; }
     .r4 .item{ position:relative; height:var(--box-h); }
     .r4 .stack{ display:flex; flex-direction:column; gap:512px; }
     .r4 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
     .r4 .item:nth-child(2n)::after{ content:""; position:absolute; top:-513px; height:558px; right:-95px; width:62px; background:linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat, linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
     .r4 .bubble{ top:-508%; }
+
     .r5{ --box-h:46px; --stub-len:35px; --stub-ext:110px; margin-top:520px; }
     .r5 .item{ position:relative; height:var(--box-h); }
     .r5 .stack{ display:flex; flex-direction:column; gap:1070px; }
     .r5 .item::before{ content:""; position:absolute; top:100%; right:-35px; width:var(--stub-len); height:var(--line-w); background:var(--stroke); transform:translateY(-50%); z-index:2; }
     .r5 .item:nth-child(2n)::after{ content:""; position:absolute; top:-1070px; height:1117px; right:-95px; width:62px; background:linear-gradient(var(--stroke),var(--stroke)) left 0/var(--line-w) 100% no-repeat, linear-gradient(var(--stroke),var(--stroke)) left 50%/calc(100% - var(--line-w)) var(--line-w) no-repeat; z-index:2; }
     .r5 .bubble{ top:-1114%; }
+
     .r6{ margin-top:1077px; }
+    /* ✅ فقط برای split-32: جام (r6) رو بیار بالا */
+    .br-split-32 .r6{
+      margin-top:520px;   /* اگر هنوز پایینه: کمترش کن | اگر زیادی رفت بالا: بیشترش کن */
+    }
+
     .r6 .champ{ position:relative; }
     .champ .player-input{ width:240px; font-weight:bold; }
+
+    /* ================= فینال 32 نفر ================= */
+    .final-32{
+      margin: 10px auto 6px;   /* قبلاً 30px بود -> خیلی می‌افتاد پایین */
+      width: 860px;
+      text-align: center;
+    }
+
+    .final-title{
+      font-weight: 900;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+
+    .final-board{
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+    }
+
+    .final-board .player-input{
+      width: 220px;
+    }
+
+    /* دایره شماره فینال - مستقل از bubble های راندها */
+    .final-bubble{
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid var(--stroke);
+      font-size: 26px;
+      text-align: center;
+      line-height: 40px;
+      background: #fff;
+    }
+
+    /* برای اینکه فینال بتواند روی split سوار شود */
+    .br-split-32{
+      position: relative; /* ✅ لازم برای absolute شدن فینال */
+    }
+
+    /* فینال 32 نفر overlay */
+    .br-split-32 .final-32{
+      position: absolute;
+      right: 18px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 520px;
+      text-align: center;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .br-split-32 .final-title{
+      font-weight: 900;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .br-split-32 .final-board{
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 18px;
+    }
+
+    /* اندازه بازیکن‌های فینال */
+    .br-split-32 .final-board .player-input{
+      width: 220px;
+      height: 54px;
+      padding: 6px 10px;
+      font-size: 18px;
+    }
+
+    /* شماره بازی فینال (بدون bubble) */
+    .br-split-32 .final-bubble{
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--stroke);
+      background: #fff;
+      text-align: center;
+      font-size: 22px;
+      line-height: 44px;
+      padding: 0;
+    }
+
+    /* =========================
+       ✅ اضافه‌ها: فینال کوچیک‌تر + خط اتصال + نسخه جدید فینال (بدون حذف قبلی‌ها)
+       ========================= */
+
+    /* فینال جدید (v2) روی split، کوچیک‌تر و با خط اتصال */
+    .br-split-32 .final-32.final-32-v2{
+      position:absolute;
+      right:18px;
+      top:50%;
+      transform:translateY(-50%);
+      width:520px;
+      z-index:25;
+      pointer-events:none;
+    }
+    .br-split-32 .final-32.final-32-v2 .final-title{
+      font-weight:900;
+      margin:0 0 6px;
+      font-size:14px;
+    }
+    .br-split-32 .final-32.final-32-v2 .final-board{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+    }
+    .br-split-32 .final-32.final-32-v2 .player-input{
+      width:170px;
+      height:44px;
+      padding:4px 8px;
+      font-size:16px;
+      border-width:2px;
+    }
+    .br-split-32 .final-32.final-32-v2 .final-bubble-v2{
+      width:34px;
+      height:34px;
+      border-radius:50%;
+      border:2px solid var(--stroke);
+      background:#fff;
+      text-align:center;
+      font-size:18px;
+      line-height:34px;
+      padding:0;
+    }
+    .br-split-32 .final-32.final-32-v2 .final-winner-v2{
+      width:72px !important;
+      font-size:18px !important;
+      font-weight:900;
+    }
+    .br-split-32 .final-32.final-32-v2 .final-board::after{
+      content:"";
+      position:absolute;
+      right:78px;
+      top:50%;
+      width:36px;
+      border-top:var(--line-w) solid var(--stroke);
+      transform:translateY(-50%);
+    }
+
+    /* اگر خواستی فینال قدیمی (همین v1 فعلی) دیده نشه، این رو فعال کن.
+       الان فعالش گذاشتم که فقط v2 دیده بشه ولی هیچ چیزی حذف نشده. */
+    .br-split-32 .final-32:not(.final-32-v2){
+      display:none;
+    }
 
     /* کنترل‌های کارت (فقط دانلود) */
     .card-controls{ display:flex; gap:8px; justify-content:flex-end; align-items:center; padding:10px 12px; border-top:1px solid #f0f0f7; }
@@ -128,6 +304,53 @@
     .button{ cursor:pointer; border-radius:10px; padding:8px 14px; font-weight:600; border:1px solid #e5e7eb; background:#fff; }
     .button.default{ background:#4f46e5; border-color:#4f46e5; color:#fff; }
     .button.outline{ color:#4f46e5; border-color:#4f46e5; background:#fff; }
+
+    /* ✅ فقط برای حالت split-32 (دو نیمه 16تایی) و فقط راند 1 */
+    .br-split-32 .r1 .player-input{
+      height: 46px;          /* هم‌قد --box-h در r1 */
+      padding: 6px 10px;     /* جمع‌وجورتر */
+      font-size: 18px;       /* کمی کوچک‌تر تا جا شود */
+      line-height: 1.2;
+    }
+
+    /* اختیاری: حباب شماره در راند اول کمی بهتر می‌نشیند */
+    .br-split-32 .r1 .bubble{
+      top: -10px;
+      font-size: 28px;
+      line-height: 36px;
+    }
+    /* فینال تک‌باکسی (v3) */
+    .br-split-32 .final-32.final-32-v2 .final-board.final-board-v3{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+    }
+    
+    .br-split-32 .final-32.final-32-v2 .final-champ-v3{
+      width:240px;
+      height:44px;
+      padding:4px 10px;
+      font-size:18px;
+      font-weight:900;
+    }
+    
+    .br-split-32 .final-32.final-32-v2 .final-bubble-v3{
+      width:36px;
+      height:36px;
+      border-radius:50%;
+      border:2px solid var(--stroke);
+      background:#fff;
+      text-align:center;
+      font-size:18px;
+      line-height:36px;
+      padding:0;
+    }
+    
+    /* اگر نمی‌خوای خط/placeholder عجیب بیاد */
+    .br-split-32 input.player-input::placeholder{ color:transparent; }
+
   </style>
 {% endblock %}
 
@@ -183,7 +406,6 @@
   </div>
 {% endif %}
 
-
     {% if brackets and brackets|length %}
       <div class="pd-toolbar" id="pd-toolbar">
         <button type="button" class="button outline" id="btn-dl-all">دانلود همه تصاویر</button>
@@ -211,57 +433,182 @@
               </div>
 
               <div class="bd">
-                <div class="bracket-wrap" data-size='{{ p.size }}'>
-                  <div class="view">
-                    <div class="board">
-                      <div class="col r1"><div class="stack">{% for i in "0123456789abcdef" %}
-                        <div class="item"><input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
-                        <div class="item">
-                          <input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
-                          <input class="bubble" data-r="1" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
-                        </div>
-                      {% endfor %}</div></div>
 
-                      <div class="col r2"><div class="stack">{% for i in "01234567" %}
-                        <div class="item"><input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
-                        <div class="item">
-                          <input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
-                          <input class="bubble" data-r="2" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
-                        </div>
-                      {% endfor %}</div></div>
+                {# -------------------- ✅ 32 نفر: split به دو 16 نفر -------------------- #}
+                {% if p.size|add:"0" == 32 %}
+                  <div class="br-split-32">
 
-                      <div class="col r3"><div class="stack">{% for i in "0123" %}
-                        <div class="item"><input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
-                        <div class="item">
-                          <input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
-                          <input class="bubble" data-r="3" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
-                        </div>
-                      {% endfor %}</div></div>
+                    <div class="split-title"></div>
+                    <div class="bracket-wrap" data-size="16" data-half="A">
+                      <div class="view">
+                        <div class="board">
+                          <div class="col r1"><div class="stack">{% for i in "01234567" %}
+                            <div class="item"><input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                            <div class="item">
+                              <input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                              <input class="bubble" data-r="1" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                            </div>
+                          {% endfor %}</div></div>
 
-                      <div class="col r4"><div class="stack">{% for i in "01" %}
-                        <div class="item"><input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
-                        <div class="item">
-                          <input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
-                          <input class="bubble" data-r="4" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
-                        </div>
-                      {% endfor %}</div></div>
+                          <div class="col r2"><div class="stack">{% for i in "0123" %}
+                            <div class="item"><input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                            <div class="item">
+                              <input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                              <input class="bubble" data-r="2" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                            </div>
+                          {% endfor %}</div></div>
 
-                      <div class="col r5"><div class="stack">
-                        <div class="item"><input class="player-input" data-r="5" data-i="0" data-pos="a" readonly></div>
-                        <div class="item">
-                          <input class="player-input" data-r="5" data-i="0" data-pos="b" readonly>
-                          <input class="bubble" data-r="5" data-i="0" data-num readonly style="right:-18px;">
-                        </div>
-                      </div></div>
+                          <div class="col r3"><div class="stack">{% for i in "01" %}
+                            <div class="item"><input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                            <div class="item">
+                              <input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                              <input class="bubble" data-r="3" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                            </div>
+                          {% endfor %}</div></div>
 
-                      <div class="col r6"><div class="champ"><input class="player-input" value="🏆                      " readonly></div></div>
+                          <div class="col r4"><div class="stack">
+                            <div class="item"><input class="player-input" data-r="4" data-i="0" data-pos="a" readonly></div>
+                            <div class="item">
+                              <input class="player-input" data-r="4" data-i="0" data-pos="b" readonly>
+                              <input class="bubble" data-r="4" data-i="0" data-num readonly style="right:-28px;">
+                            </div>
+                          </div></div>
+
+                          <div class="col r6"><div class="champ"><input class="player-input"  readonly></div></div>
+                        </div>
+                      </div>
+
+                      <script type="application/json" class="matches-json">
+                        {{ p.matches_json|safe }}
+                      </script>
+                    </div><!-- /half A -->
+
+                    <!-- ✅ فینال اصلی 32 نفر (بین دو نیمه) - نسخه قبلی (بدون حذف نگه داشته شده) -->
+                    <div class="final-32" aria-label="Final 32">
+                      <div class="final-title">فینال</div>
+
+                      <div class="final-board">
+                        <input class="player-input final-b" value="🏆                      " readonly>
+                        <input class="final-bubble" readonly>
+                      </div>
                     </div>
-                  </div>
 
-                  <script type="application/json" class="matches-json">
-                    {{ p.matches_json|safe }}
-                  </script>
-                </div><!-- /bracket-wrap -->
+                    <!-- ✅ فینال جدید (v2) - کوچیک‌تر + خط اتصال + شماره بازی -->
+                    <div class="final-32 final-32-v2" aria-label="Final 32 v2">
+                      <div class="final-title">برنده فینال</div>
+                    
+                      <div class="final-board final-board-v3">
+                        <!-- فقط یک باکس برای قهرمان -->
+                        <input class="player-input final-champ-v3" value="🏆                         " readonly>
+                        <!-- شماره بازی فینال -->
+                        <input class="final-bubble-v3" readonly>
+                      </div>
+                    </div>
+                    
+                    
+
+                    <div class="split-title"></div>
+                    <div class="bracket-wrap" data-size="16" data-half="B">
+                      <div class="view">
+                        <div class="board">
+                          <div class="col r1"><div class="stack">{% for i in "01234567" %}
+                            <div class="item"><input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                            <div class="item">
+                              <input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                              <input class="bubble" data-r="1" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                            </div>
+                          {% endfor %}</div></div>
+
+                          <div class="col r2"><div class="stack">{% for i in "0123" %}
+                            <div class="item"><input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                            <div class="item">
+                              <input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                              <input class="bubble" data-r="2" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                            </div>
+                          {% endfor %}</div></div>
+
+                          <div class="col r3"><div class="stack">{% for i in "01" %}
+                            <div class="item"><input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                            <div class="item">
+                              <input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                              <input class="bubble" data-r="3" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                            </div>
+                          {% endfor %}</div></div>
+
+                          <div class="col r4"><div class="stack">
+                            <div class="item"><input class="player-input" data-r="4" data-i="0" data-pos="a" readonly></div>
+                            <div class="item">
+                              <input class="player-input" data-r="4" data-i="0" data-pos="b" readonly>
+                              <input class="bubble" data-r="4" data-i="0" data-num readonly style="right:-28px;">
+                            </div>
+                          </div></div>
+
+                          <div class="col r6"><div class="champ"><input class="player-input"  readonly></div></div>
+                        </div>
+                      </div>
+
+                      <script type="application/json" class="matches-json">
+                        {{ p.matches_json|safe }}
+                      </script>
+                    </div><!-- /half B -->
+
+                  </div><!-- /split wrapper -->
+
+                {# -------------------- حالت قدیمی (همان کد قبلی تو) -------------------- #}
+                {% else %}
+                  <div class="bracket-wrap" data-size='{{ p.size }}'>
+                    <div class="view">
+                      <div class="board">
+                        <div class="col r1"><div class="stack">{% for i in "0123456789abcdef" %}
+                          <div class="item"><input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                          <div class="item">
+                            <input class="player-input" data-r="1" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                            <input class="bubble" data-r="1" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                          </div>
+                        {% endfor %}</div></div>
+
+                        <div class="col r2"><div class="stack">{% for i in "01234567" %}
+                          <div class="item"><input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                          <div class="item">
+                            <input class="player-input" data-r="2" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                            <input class="bubble" data-r="2" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                          </div>
+                        {% endfor %}</div></div>
+
+                        <div class="col r3"><div class="stack">{% for i in "0123" %}
+                          <div class="item"><input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                          <div class="item">
+                            <input class="player-input" data-r="3" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                            <input class="bubble" data-r="3" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                          </div>
+                        {% endfor %}</div></div>
+
+                        <div class="col r4"><div class="stack">{% for i in "01" %}
+                          <div class="item"><input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="a" readonly></div>
+                          <div class="item">
+                            <input class="player-input" data-r="4" data-i="{{ forloop.counter0 }}" data-pos="b" readonly>
+                            <input class="bubble" data-r="4" data-i="{{ forloop.counter0 }}" data-num readonly style="right:-28px;">
+                          </div>
+                        {% endfor %}</div></div>
+
+                        <div class="col r5"><div class="stack">
+                          <div class="item"><input class="player-input" data-r="5" data-i="0" data-pos="a" readonly></div>
+                          <div class="item">
+                            <input class="player-input" data-r="5" data-i="0" data-pos="b" readonly>
+                            <input class="bubble" data-r="5" data-i="0" data-num readonly style="right:-18px;">
+                          </div>
+                        </div></div>
+
+                        <div class="col r6"><div class="champ"><input class="player-input"  readonly></div></div>
+                      </div>
+                    </div>
+
+                    <script type="application/json" class="matches-json">
+                      {{ p.matches_json|safe }}
+                    </script>
+                  </div><!-- /bracket-wrap -->
+                {% endif %}
+
               </div>
             </div><!-- /card-content -->
 
@@ -307,8 +654,37 @@
       if (w && MatsByWeight.has(w)) el.textContent = MatsByWeight.get(w);
     });
 
+    /* ====== ✅ Split 32 -> 16 (A/B) ====== */
+    function split32to16(matches, half){
+      const byRound = new Map();
+      for (const m of matches){
+        const r = Number(m.round_no || 1);
+        if (!byRound.has(r)) byRound.set(r, []);
+        byRound.get(r).push(m);
+      }
+      for (const [r, arr] of byRound){
+        arr.sort((a,b)=>(a.slot_a||0)-(b.slot_a||0));
+        const mid = Math.ceil(arr.length/2);
+        byRound.set(r, (half==='A') ? arr.slice(0, mid) : arr.slice(mid));
+      }
+      const out = [];
+      [...byRound.keys()].sort((a,b)=>a-b).forEach(r=>{
+        out.push(...(byRound.get(r) || []));
+      });
+      return out;
+    }
+
     /* ====== توابع برد/فیت ====== */
     function applyRoundShifting(wrap, declaredSize){
+      // ✅ اگر split هستیم (data-half داریم)، شیفت را خاموش کن
+      if (wrap.getAttribute('data-half')) {
+        for (let c=1; c<=5; c++){
+          const col = wrap.querySelector('.r'+c);
+          if (col) col.style.display = '';
+        }
+        return { mapRound: (r)=>r };
+      }
+
       const size = Math.max(1, Number(declaredSize||0));
       let roundsCount = 0; while ((1<<roundsCount) < size) roundsCount++;
       roundsCount = Math.max(1, roundsCount);
@@ -398,7 +774,6 @@
     function fillSinglePathAllTheWay(wrap, name, mapRound, firstInfo){
       if (!name || !firstInfo || !firstInfo.r) return;
 
-      // پیدا کردن جفت بازیکن در راند اول
       let i = 0;
       for (let idx=0; idx<firstInfo.count; idx++){
         const a = wrap.querySelector(`input.player-input[data-r="${firstInfo.vr}"][data-i="${idx}"][data-pos="a"]`);
@@ -406,7 +781,6 @@
         if (a?.value.trim()===name || b?.value.trim()===name){ i = idx; break; }
       }
 
-      // راند اول: همه «استراحت»؛ جفت بازیکن: یک طرف بازیکن / طرف مقابل استراحت
       for (let idx=0; idx<firstInfo.count; idx++){
         const a = wrap.querySelector(`input.player-input[data-r="${firstInfo.vr}"][data-i="${idx}"][data-pos="a"]`);
         const b = wrap.querySelector(`input.player-input[data-r="${firstInfo.vr}"][data-i="${idx}"][data-pos="b"]`);
@@ -422,7 +796,6 @@
         if (n){ n.classList.add('bye-mark'); n.value=""; n.title="استراحت"; }
       }
 
-      // از همان شاخه، نام را تا فینال بالا ببر؛ همه حباب‌ها بدون شماره
       let r = firstInfo.r;
       while (true){
         const vr = mapRound(r);
@@ -453,7 +826,14 @@
     }
 
     function applyDataAndFit(wrap){
-      const matches = readMatches(wrap);
+      let matches = readMatches(wrap);
+
+      // ✅ اگر split 32 هستیم (half A/B)، matches را نیمه‌ای کن
+      const half = wrap.getAttribute('data-half');
+      if (half) {
+        matches = split32to16(matches, half);
+      }
+
       const declaredSize = wrap.getAttribute('data-size') || '';
       const { mapRound } = applyRoundShifting(wrap, declaredSize);
       const fr = firstRoundInfo(wrap, mapRound);
@@ -496,7 +876,89 @@
       else propagateByesOneStep(wrap, mapRound);
 
       fitToCard(wrap);
+
+      /* ===========================
+         ✅ فینال 32 نفر (کد قبلی شما - بدون حذف نگه داشته شده)
+         =========================== */
+      const card = wrap.closest('.card');
+      if (!card) return;
+
+      // فقط در کارت‌هایی که split-32 دارند
+      const split = card.querySelector('.br-split-32');
+      if (!split) return;
+
+      // guard: دوبار اجرا نشه
+      if (card.dataset.final32Done === "1") return;
+
+      const finalA = card.querySelector('.final-a');
+      const finalB = card.querySelector('.final-b');
+      const finalBubble = card.querySelector('.final-bubble');
+      if (!finalA || !finalB || !finalBubble) {
+        // این return باعث می‌شد نسخه قبلی شما فینال رو پر نکنه
+        // ما حذفش نکردیم؛ فقط نسخه v2 رو پایین‌تر جداگانه پر می‌کنیم.
+      } else {
+        // برنده نیمه A و B از r6
+        const champA = card.querySelector('.bracket-wrap[data-half="A"] .r6 .champ .player-input');
+        const champB = card.querySelector('.bracket-wrap[data-half="B"] .r6 .champ .player-input');
+
+        const cleanChamp = (v)=> String(v||"").replace('🏆','').trim();
+
+        finalA.value = cleanChamp(champA?.value);
+        finalA.title = finalA.value;
+
+        finalB.value = cleanChamp(champB?.value);
+        finalB.title = finalB.value;
+
+        // شماره بازی فینال: از JSON اصلی خود کارت (نه نیمه‌ای)
+        const fullMatchesNodeA = card.querySelector('.bracket-wrap[data-half="A"] script.matches-json');
+        const fullTxt = fullMatchesNodeA ? (fullMatchesNodeA.textContent||"").trim() : "[]";
+        let fullMatches = [];
+        try { fullMatches = JSON.parse(fullTxt || "[]"); } catch { fullMatches = []; }
+
+        // ✅ فینال 32 نفر معمولاً round_no=5 است
+        const finalMatch = fullMatches.find(m => Number(m.round_no) === 5);
+        finalBubble.value = finalMatch ? String(getMatchNumber(finalMatch) || "") : "";
+        finalBubble.title = finalBubble.value;
+
+        card.dataset.final32Done = "1";
+      }
     }
+
+    /* ===========================
+       ✅ فینال 32 نفر (نسخه جدید v2) - بدون حذف کدهای قبلی
+       =========================== */
+    function applyFinal32V2(card){
+      if (!card) return;
+    
+      const split = card.querySelector('.br-split-32');
+      if (!split) return;
+    
+      if (card.dataset.final32V2Done === "1") return;
+    
+      const champBox = card.querySelector('.final-champ-v3');
+      const bubble   = card.querySelector('.final-bubble-v3');
+      if (!champBox || !bubble) return;
+    
+      // شماره بازی فینال از JSON کامل
+      const nodeA = card.querySelector('.bracket-wrap[data-half="A"] script.matches-json');
+      const txt = nodeA ? (nodeA.textContent||"").trim() : "[]";
+      let fullMatches = [];
+      try { fullMatches = JSON.parse(txt || "[]"); } catch { fullMatches = []; }
+    
+      // آخرین راند = فینال
+      const maxRound = fullMatches.reduce((mx, m)=> Math.max(mx, Number(m.round_no||0)), 0);
+      const finalMatch = fullMatches.find(m => Number(m.round_no||0) === maxRound) || null;
+    
+      bubble.value = finalMatch ? String(getMatchNumber(finalMatch) || "") : "";
+      bubble.title = bubble.value;
+    
+      // فعلاً فقط "🏆" (چون قهرمان بعد از اجرای فینال مشخص میشه)
+      champBox.value = "🏆";
+      champBox.title = "قهرمان";
+    
+      card.dataset.final32V2Done = "1";
+    }
+
 
     /* ====== فیت هدر (یک‌خطی با اسکیل) ====== */
     function fitHeader(card){
@@ -579,9 +1041,22 @@
 
     /* ====== اجرا ====== */
     document.querySelectorAll('.bracket-wrap').forEach(applyDataAndFit);
+
+    /* ✅ بعد از پر شدن نیمه‌ها، فینال v2 رو هم برای هر کارت پر کن */
+    document.querySelectorAll('.card').forEach(applyFinal32V2);
+
     fitAllHeaders();
     setTimeout(()=>{ fitAllHeaders(); snapshotAll(); }, 160);
-    let t; window.addEventListener('resize', ()=>{ clearTimeout(t); t=setTimeout(()=>{ refitAll(); fitAllHeaders(); }, 120); });
+
+    let t;
+    window.addEventListener('resize', ()=>{
+      clearTimeout(t);
+      t=setTimeout(()=>{
+        refitAll();
+        fitAllHeaders();
+        document.querySelectorAll('.card').forEach(applyFinal32V2);
+      }, 120);
+    });
   })();
   </script>
 {% endblock %}

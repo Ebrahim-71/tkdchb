@@ -23,8 +23,8 @@ from .views import (
     # --------- Poomsae ----------
     PoomsaeCompetitionDetailView,
     PoomsaeCoachApprovalStatusView, PoomsaeCoachApprovalApproveView,
-    PoomsaeRegisterSelfView,MyPoomsaeEnrollmentsView
-    # PoomsaeRegisterSelfPrefillView,  # اگر دارید، فعالش کنید
+    PoomsaeRegisterSelfView,MyPoomsaeEnrollmentsView,
+    PoomsaeCoachStudentsEligibleListView,
 )
 
 app_name = "competitions"
@@ -118,4 +118,20 @@ urlpatterns = [
     # ========================= جزئیات مسابقه (GENERIC) =========================
     path("<ckey:key>/", CompetitionDetailAnyView.as_view(), name="competition-detail-any"),
     path("competitions/<ckey:key>/", CompetitionDetailAnyView.as_view(), name="competition-detail-any-compat"),
+    
+    
+        # ✅ پومسه: لیست شاگردان واجد شرایط
+    path(
+        "auth/poomsae/<ckey:key>/coach/students/eligible/",
+        PoomsaeCoachStudentsEligibleListView.as_view(),
+        name="poomsae-coach-eligible-students",
+    ),
+    
+    # ✅ (اختیاری) اگر جایی هنوز public_id صدا زده می‌شود
+    path(
+        "auth/poomsae/<ckey:public_id>/coach/students/eligible/",
+        PoomsaeCoachStudentsEligibleListView.as_view(),
+        name="poomsae-coach-eligible-students-publicid-alias",
+    ),
+
 ]
